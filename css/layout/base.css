@@ -1,0 +1,94 @@
+/* General Styles */
+body {
+    background-color: #f5f5f5;
+    /* Force hardware acceleration for smooth scrolling */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+/* Smooth scrolling for the entire document */
+html {
+    scroll-behavior: smooth;
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+}
+
+/* Container improvements for smooth scrolling */
+.container-fluid {
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    /* Optimize rendering */
+    contain: layout style;
+}
+
+/* Sticky header improvements */
+.position-sticky {
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    will-change: transform;
+    /* Ensure proper stacking */
+    isolation: isolate;
+}
+
+/* Card containers - prevent rendering issues */
+.card {
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    /* Improve rendering performance */
+    contain: layout style paint;
+}
+
+/* Container sections - prevent rendering issues during scroll */
+.container,
+.container-fluid {
+    /* Improve rendering performance */
+    contain: layout style;
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+/* Main content sections */
+.card.shadow,
+.card.shadow-sm {
+    /* Force layer creation for smooth scrolling */
+    will-change: transform;
+    /* Prevent rendering issues */
+    contain: layout style paint;
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+/* Additional scrolling performance improvements */
+/* Improve overall scrolling performance */
+* {
+    /* Prevent layout thrashing */
+    box-sizing: border-box;
+}
+
+/* Loading states - ensure they don't interfere with scrolling */
+#calendly-loading,
+.spinner-border {
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+} 

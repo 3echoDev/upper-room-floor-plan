@@ -1,0 +1,24 @@
+/* Sidebar Styles */
+.sidebar {
+    background-color: #fff;
+    padding: 20px;
+    height: 100vh;
+    border-right: 1px solid #ddd;
+}
+
+.elements-container {
+    margin-top: 20px;
+}
+
+.draggable-item {
+    background-color: #e9ecef;
+    padding: 10px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    cursor: move;
+    user-select: none;
+}
+
+.draggable-item:hover {
+    background-color: #dee2e6;
+} 

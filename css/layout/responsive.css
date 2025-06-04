@@ -1,0 +1,391 @@
+@media (max-width: 1200px) {
+    .floor-plan-wrapper {
+        transform: scale(0.9) translateZ(0);
+        width: 720px;
+        height: 675px;
+    }
+}
+
+@media (max-width: 992px) {
+    .floor-plan-container {
+        min-height: 650px;
+    }
+    
+    .floor-plan-wrapper {
+        transform: scale(0.8) translateZ(0);
+        width: 640px;
+        height: 600px;
+    }
+}
+
+@media (max-width: 768px) {
+    .floor-plan-container {
+        min-height: 550px;
+    }
+    
+    .floor-plan-wrapper {
+        transform: scale(0.7) translateZ(0);
+        width: 560px;
+        height: 525px;
+    }
+    
+    .position-sticky h1.display-4 {
+        font-size: 2rem;
+    }
+    
+    .position-sticky h5 {
+        font-size: 0.9rem;
+    }
+
+    .table-grid {
+        padding: 0.75rem;
+    }
+    
+    .table-grid h3 {
+        font-size: 1.3rem;
+    }
+    
+    .table-card .card-header h5 {
+        font-size: 1rem;
+    }
+    
+    .table-card .card-header small {
+        font-size: 0.7rem;
+    }
+
+    .list-group-item .card-body {
+        padding: 1rem !important;
+    }
+    
+    .bg-light.rounded-circle {
+        width: 35px;
+        height: 35px;
+    }
+    
+    .row.g-3 {
+        margin: 0 -0.5rem;
+    }
+    
+    .row.g-3 > * {
+        padding: 0 0.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .badge.fs-6 {
+        font-size: 0.8rem !important;
+        padding: 0.4rem 0.6rem !important;
+    }
+    
+    .d-flex.gap-2 {
+        flex-wrap: wrap;
+        gap: 0.5rem !important;
+    }
+    
+    .reservation-info-line {
+        font-size: 0.9rem;
+    }
+    
+    .list-group-item {
+        padding: 0.5rem 0.25rem;
+    }
+    
+    /* Ensure proper layout flow */
+    .table-grid {
+        margin-top: 15px;
+        padding-bottom: 20px;
+    }
+
+    #calendly-bookings .col-md-6 {
+        margin-bottom: 1rem;
+    }
+    
+    #calendly-bookings .card-body .row .col-6 {
+        margin-bottom: 0.5rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .floor-plan-container {
+        min-height: 500px;
+    }
+    
+    .floor-plan-wrapper {
+        transform: scale(0.55) translateZ(0);
+        width: 440px;
+        height: 450px;
+        margin-top: -40px;
+        transform-origin: center top;
+    }
+    
+    .table-block {
+        width: 80px;
+        height: 60px;
+    }
+    
+    .table-label {
+        font-size: 1.2rem;
+    }
+    
+    .table-caption {
+        font-size: 0.65rem;
+    }
+    
+    /* Position adjustments for smaller screens */
+    .floor-plan-wrapper .table-block[id="table-A1"],
+    .floor-plan-wrapper .table-block[id="table-A2"] {
+        top: 520px !important;
+    }
+    
+    .position-sticky .d-flex.gap-4 {
+        flex-wrap: wrap;
+        gap: 10px !important;
+    }
+    
+    .position-sticky h1.display-4 {
+        font-size: 1.75rem;
+    }
+    
+    .position-sticky h5 {
+        font-size: 0.85rem;
+        margin-right: 5px;
+    }
+
+    .table-grid {
+        padding: 0.5rem;
+    }
+    
+    .table-grid h3 {
+        font-size: 1.2rem;
+    }
+    
+    .reservation-summary .d-flex {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    .reservation-summary .text-end {
+        text-align: left !important;
+        margin-top: 0.25rem;
+    }
+
+    /* Make table cards more touch-friendly */
+    .table-card {
+        margin-bottom: 15px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    
+    .table-card .card-header {
+        padding: 10px;
+    }
+    
+    /* Make toggle buttons more touch-friendly */
+    .table-card .card-header .btn {
+        min-width: 34px;
+        min-height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Improve time slots display on mobile */
+    .time-slots-container .list-group-item {
+        padding: 8px 10px;
+    }
+    
+    /* Improve select dropdowns on mobile */
+    .form-select-sm {
+        padding-top: 8px;
+        padding-bottom: 8px;
+        min-height: 38px;
+    }
+    
+    /* Better spacing for reservation summaries */
+    .reservation-summary {
+        padding: 12px 10px;
+    }
+    
+    /* Improve quick walk-in button */
+    .quick-walkin-btn {
+        width: 100%;
+        margin-top: 8px;
+        padding: 8px;
+    }
+    
+    /* Fix time slots on mobile */
+    .list-group-item.period-lunch,
+    .list-group-item.period-afternoon,
+    .list-group-item.period-dinner,
+    .list-group-item.period-late {
+        padding-left: 15px;
+    }
+    
+    /* Adjust mobile container padding */
+    .container {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    
+    /* Make sticky header more compact */
+    .position-sticky.top-0 {
+        padding-top: 10px !important;
+        padding-bottom: 10px !important;
+    }
+    
+    /* Fix scrolling issues */
+    .table-grid {
+        margin-top: 15px;
+        padding-bottom: 20px;
+    }
+
+    .table-select-btn {
+        min-width: 80px;
+        padding: 8px;
+    }
+
+    .table-select-btn .table-id {
+        font-size: 1em;
+    }
+
+    .table-select-btn .table-info {
+        font-size: 0.75em;
+    }
+
+    .table-status-indicator {
+        top: -8px;
+        right: -8px;
+    }
+    
+    .table-status-indicator .badge {
+        width: 20px;
+        height: 20px;
+        font-size: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .floor-plan-container {
+        min-height: 420px;
+    }
+    
+    .floor-plan-wrapper {
+        transform: scale(0.45) translateZ(0);
+        width: 350px;
+        height: 430px;
+        margin-top: -60px;
+    }
+    
+    /* Position adjustments for smaller screens */
+    .floor-plan-wrapper .table-block[id="table-A1"],
+    .floor-plan-wrapper .table-block[id="table-A2"] {
+        top: 500px !important;
+    }
+    
+    .position-sticky h1.display-4 {
+        font-size: 1.5rem;
+    }
+    
+    .position-sticky .d-flex.gap-4 {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px !important;
+    }
+    
+    .position-sticky h5 {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 380px) {
+    .floor-plan-container {
+        min-height: 380px;
+        padding: 5px;
+    }
+    
+    .floor-plan-wrapper {
+        transform: scale(0.4) translateZ(0);
+        margin-top: -70px;
+        height: 400px;
+        width: 320px;
+    }
+    
+    .table-block {
+        width: 75px;
+        height: 55px;
+    }
+    
+    /* Position adjustments for smaller screens */
+    .floor-plan-wrapper .table-block[id="table-A1"],
+    .floor-plan-wrapper .table-block[id="table-A2"] {
+        top: 480px !important;
+    }
+    
+    .position-sticky h1.display-4 {
+        font-size: 1.25rem;
+    }
+    
+    .badge.bg-info.p-2 {
+        font-size: 0.7rem;
+        padding: 0.25rem 0.5rem !important;
+    }
+
+    .table-card .card-header .d-flex {
+        flex-wrap: wrap;
+    }
+    
+    /* Smaller buttons for very small screens */
+    .table-card .card-header .btn {
+        min-width: 30px;
+        min-height: 30px;
+        padding: 4px;
+    }
+    
+    /* Ensure text doesn't overflow */
+    .table-card .card-header h5 {
+        max-width: 75%;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    /* Stack status dropdown for very small screens */
+    .time-slots-container .d-flex {
+        flex-direction: column;
+        align-items: flex-start !important;
+    }
+    
+    .time-slots-container .form-select-sm {
+        margin-top: 5px;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .table-block {
+        width: 75px;
+        height: 55px;
+        padding: 2px;
+    }
+    
+    .table-status-indicator {
+        top: -6px;
+        right: -6px;
+    }
+    
+    .table-status-indicator .badge {
+        width: 18px;
+        height: 18px;
+        font-size: 0.7rem;
+    }
+
+    /* Add new styles for time slot display */
+    .time-slots-container .text-end {
+        text-align: left !important;
+        width: 100%;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .time-slots-container .fw-bold.text-primary {
+        font-size: 0.9rem;
+    }
+} 

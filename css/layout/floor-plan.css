@@ -1,0 +1,84 @@
+/* Floor Plan Styles - Improved for smooth scrolling */
+.floor-plan-container {
+    background-color: #000;
+    min-height: 750px;
+    position: relative;
+    padding: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    /* Improve rendering performance */
+    will-change: transform;
+    contain: layout style paint;
+}
+
+.floor-plan-wrapper {
+    position: relative;
+    width: 800px;
+    max-width: 100%;
+    height: 750px;
+    transform-origin: center center;
+    /* Force hardware acceleration for smooth transforms */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    will-change: transform;
+    /* Improve rendering performance */
+    contain: layout style paint;
+}
+
+/* Floor Plan Elements */
+.floor-element {
+    position: absolute;
+    cursor: move;
+}
+
+.table-2 {
+    width: 60px;
+    height: 40px;
+    background-color: #b8daff;
+    border-radius: 5px;
+}
+
+.table-4 {
+    width: 80px;
+    height: 80px;
+    background-color: #c3e6cb;
+    border-radius: 5px;
+}
+
+.table-6 {
+    width: 120px;
+    height: 80px;
+    background-color: #ffeeba;
+    border-radius: 5px;
+}
+
+.wall {
+    background-color: #6c757d;
+    min-width: 10px;
+    min-height: 100px;
+}
+
+.door {
+    width: 40px;
+    height: 10px;
+    background-color: #8b4513;
+}
+
+/* Prevent text selection from interfering with scrolling */
+.floor-plan-container,
+.table-block,
+.door-element {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+} 

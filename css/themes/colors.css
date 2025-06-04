@@ -1,0 +1,92 @@
+/* Status Colors */
+.bg-danger-subtle {
+    background-color: #f8d7da !important;
+}
+
+.bg-info-subtle {
+    background-color: #cff4fc !important;
+}
+
+/* Status Color Enhanced Styling for Reservations */
+.status-reserved {
+    --status-color: #dc3545;
+    --status-color-rgb: 220, 53, 69;
+}
+
+.status-arrived {
+    --status-color: #ffc107;
+    --status-color-rgb: 255, 193, 7;
+}
+
+.status-paid {
+    --status-color: #198754;
+    --status-color-rgb: 25, 135, 84;
+}
+
+.status-no-show {
+    --status-color: #212529;
+    --status-color-rgb: 33, 37, 41;
+}
+
+/* Enhanced status select styling with color indicators */
+.form-select option[value="reserved"] {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.form-select option[value="arrived"] {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+    font-weight: 600;
+}
+
+.form-select option[value="paid"] {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: #198754;
+    font-weight: 600;
+}
+
+.form-select option[value="no-show"] {
+    background-color: rgba(33, 37, 41, 0.1);
+    color: #212529;
+    font-weight: 600;
+}
+
+/* Status-based border and background enhancements */
+.border-danger {
+    border-color: #dc3545 !important;
+}
+
+.border-warning {
+    border-color: #ffc107 !important;
+}
+
+.border-success {
+    border-color: #198754 !important;
+}
+
+.border-dark {
+    border-color: #212529 !important;
+}
+
+/* Add pulsing animation for status colors */
+.text-danger, .text-warning, .text-success, .text-dark {
+    transition: all 0.3s ease;
+}
+
+.text-danger:hover {
+    text-shadow: 0 0 5px rgba(220, 53, 69, 0.5);
+}
+
+.text-warning:hover {
+    text-shadow: 0 0 5px rgba(255, 193, 7, 0.5);
+}
+
+.text-success:hover {
+    text-shadow: 0 0 5px rgba(25, 135, 84, 0.5);
+}
+
+.text-dark:hover {
+    text-shadow: 0 0 5px rgba(33, 37, 41, 0.5);
+} 

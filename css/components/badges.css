@@ -1,0 +1,67 @@
+/* Badge Animation */
+@keyframes pulse-badge {
+    0% { transform: scale(1) translateZ(0); }
+    50% { transform: scale(1.1) translateZ(0); }
+    100% { transform: scale(1) translateZ(0); }
+}
+
+/* Single, consolidated badge style */
+.table-status-indicator {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    z-index: 100;
+    pointer-events: none;
+}
+
+.table-status-indicator .badge {
+    width: 24px;
+    height: 24px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #dc3545 !important;
+    color: white;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    animation: pulse-badge 2s infinite;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+}
+
+/* Badge styling is defined further down with animations */
+
+/* Status badge improvements */
+.badge {
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+/* Enhanced Reservation Display */
+.list-group-item .badge.fs-6 {
+    font-size: 0.9rem !important;
+    font-weight: 600;
+    padding: 0.5rem 0.75rem !important;
+    border-radius: 6px;
+}
+
+/* Badge animations - ensure smooth performance */
+@keyframes pulse-badge {
+    0% { transform: scale(1) translateZ(0); }
+    50% { transform: scale(1.1) translateZ(0); }
+    100% { transform: scale(1) translateZ(0); }
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+    0% { transform: rotate(0deg) translateZ(0); }
+    100% { transform: rotate(360deg) translateZ(0); }
+}
+
+#calendly-bookings .spinner-border-sm {
+    animation: spin 1s linear infinite;
+} 

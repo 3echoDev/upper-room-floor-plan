@@ -1,0 +1,90 @@
+/* Calendly Booking Cards */
+#calendly-bookings .card {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    overflow: hidden;
+    /* Force hardware acceleration for smooth scrolling */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    will-change: transform;
+    /* Improve rendering performance */
+    contain: layout style paint;
+}
+
+#calendly-bookings .card:hover {
+    transform: translateY(-4px) translateZ(0);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+
+#calendly-bookings .card-header {
+    border-radius: 12px 12px 0 0 !important;
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%) !important;
+    border: none;
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+}
+
+#calendly-bookings .card-body {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+}
+
+#calendly-bookings .card-footer {
+    background: transparent;
+    border: none;
+    margin-top: auto;
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+}
+
+/* Ensure all booking cards have the same height */
+#calendly-bookings .row {
+    align-items: stretch;
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+}
+
+#calendly-bookings .col-md-6,
+#calendly-bookings .col-lg-4 {
+    display: flex;
+    flex-direction: column;
+    /* Force hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+}
+
+/* Status indicators in card footer */
+#calendly-bookings .card-footer .bg-success {
+    border: 1px solid rgba(25, 135, 84, 0.3);
+}
+
+#calendly-bookings .card-footer .bg-warning {
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+/* Card text styling */
+#calendly-bookings .card-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+#calendly-bookings .card-body .row {
+    margin-bottom: 0.75rem;
+}
+
+#calendly-bookings .card-body .row:last-child {
+    margin-bottom: 0;
+}
+
+/* Special request styling */
+#calendly-bookings .text-break {
+    font-style: italic;
+    color: #6c757d !important;
+} 

@@ -1,0 +1,173 @@
+/* Time Period Headers */
+.list-group-item.bg-light h6 {
+    font-size: 0.85rem;
+    font-weight: bold;
+}
+
+/* Lunch Period */
+.list-group-item.period-lunch {
+    border-left: 3px solid #ffc107;
+}
+
+/* Afternoon Period */
+.list-group-item.period-afternoon {
+    border-left: 3px solid #fd7e14;
+}
+
+/* Dinner Period */
+.list-group-item.period-dinner {
+    border-left: 3px solid #dc3545;
+}
+
+/* Late Night Period */
+.list-group-item.period-late {
+    border-left: 3px solid #6610f2;
+}
+
+/* Reservation summary items */
+.reservation-summary {
+    transition: background-color 0.2s;
+}
+
+.reservation-summary:hover {
+    filter: brightness(0.95);
+}
+
+.reservation-summary.bg-danger-subtle:hover {
+    background-color: #f5c2c7 !important;
+}
+
+.reservation-summary.bg-info-subtle:hover {
+    background-color: #b6effb !important;
+}
+
+/* Time slots close button */
+.time-slots-close-btn {
+    margin-top: 10px;
+    transition: all 0.2s;
+}
+
+.time-slots-close-btn:hover {
+    background-color: #6c757d;
+    color: white;
+    transform: scale(1.05);
+}
+
+/* Quick walk-in button */
+.quick-walkin-btn {
+    transition: all 0.2s;
+}
+
+.quick-walkin-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+/* Current time slot highlight */
+.current-time-slot {
+    border-left-width: 5px !important;
+    background-color: rgba(13, 110, 253, 0.15) !important;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(13, 110, 253, 0.1);
+}
+
+.current-time-slot small {
+    font-weight: bold;
+    color: #0d6efd;
+}
+
+.current-time-slot.bg-danger-subtle,
+.current-time-slot.bg-info-subtle {
+    background-color: inherit !important;
+}
+
+/* Improved Reservation Cards */
+.list-group-item .card {
+    transition: all 0.2s ease;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.list-group-item .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1) !important;
+}
+
+.reservation-summary .card-body {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+}
+
+/* Icon containers in reservation cards */
+.bg-light.rounded-circle {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #e9ecef !important;
+    border: 1px solid #dee2e6;
+}
+
+.reservation-info-line {
+    margin-bottom: 0.25rem;
+    line-height: 1.4;
+}
+
+.reservation-info-line strong {
+    color: #333;
+    margin-right: 0.5rem;
+}
+
+.reservation-special-request {
+    background-color: #f8f9fa;
+    padding: 0.5rem;
+    border-radius: 4px;
+    border-left: 3px solid #0d6efd;
+    margin-top: 0.5rem;
+}
+
+.reservation-system-note {
+    background-color: #f8f9fa;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    border-left: 2px solid #6c757d;
+    margin-top: 0.25rem;
+}
+
+/* Make table reservations more compact */
+.list-group-item {
+    border-bottom: 1px solid #dee2e6 !important;
+    padding: 0.75rem 0.5rem;
+}
+
+.list-group-item:last-child {
+    border-bottom: none !important;
+}
+
+/* Phone number links */
+a[href^="tel:"] {
+    color: #0d6efd;
+    font-weight: 500;
+}
+
+a[href^="tel:"]:hover {
+    color: #0b5ed7;
+    text-decoration: underline !important;
+}
+
+/* Dropdown improvements */
+.dropdown-menu {
+    border: 1px solid #dee2e6;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-radius: 8px;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+/* Special requests section */
+.bg-light.rounded {
+    background-color: #f8f9fa !important;
+    border: 1px solid #e9ecef;
+} 

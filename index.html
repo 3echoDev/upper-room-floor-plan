@@ -8,929 +8,10 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <!-- Combined CSS -->
-    <style>
-        /* General Styles */
-        body {
-            background-color: #f5f5f5;
-        }
-
-        /* Sidebar Styles */
-        .sidebar {
-            background-color: #fff;
-            padding: 20px;
-            height: 100vh;
-            border-right: 1px solid #ddd;
-        }
-
-        .elements-container {
-            margin-top: 20px;
-        }
-
-        .draggable-item {
-            background-color: #e9ecef;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            cursor: move;
-            user-select: none;
-        }
-
-        .draggable-item:hover {
-            background-color: #dee2e6;
-        }
-
-        /* Floor Plan Styles */
-        .floor-plan-container {
-            background-color: #000;
-            min-height: 720px;
-            position: relative;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-        }
-        
-        .floor-plan-wrapper {
-            position: relative;
-            width: 700px;
-            max-width: 100%;
-            height: 720px;
-            transform-origin: center center;
-        }
-        
-        @media (max-width: 1200px) {
-            .floor-plan-wrapper {
-                transform: scale(0.9);
-                width: 630px;
-                height: 650px;
-            }
-        }
-        
-        @media (max-width: 992px) {
-            .floor-plan-container {
-                min-height: 600px;
-            }
-            
-            .floor-plan-wrapper {
-                transform: scale(0.8);
-                width: 560px;
-                height: 580px;
-            }
-        }
-        
-        @media (max-width: 768px) {
-            .floor-plan-container {
-                min-height: 520px;
-            }
-            
-            .floor-plan-wrapper {
-                transform: scale(0.7);
-                width: 490px;
-                height: 510px;
-            }
-            
-            .position-sticky h1.display-4 {
-                font-size: 2rem;
-            }
-            
-            .position-sticky h5 {
-                font-size: 0.9rem;
-            }
-        }
-        
-        @media (max-width: 576px) {
-            .floor-plan-container {
-                min-height: 480px;
-            }
-            
-            .floor-plan-wrapper {
-                transform: scale(0.55);
-                width: 385px;
-                height: 440px;
-                margin-top: -50px;
-                transform-origin: center top;
-            }
-            
-            .table-block {
-                width: 80px;
-                height: 60px;
-            }
-            
-            .table-label {
-                font-size: 1.2rem;
-            }
-            
-            .table-caption {
-                font-size: 0.65rem;
-            }
-            
-            /* Position adjustments for smaller screens */
-            .floor-plan-wrapper .table-block[id="table-A1"],
-            .floor-plan-wrapper .table-block[id="table-A2"] {
-                top: 520px !important;
-            }
-            
-            .position-sticky .d-flex.gap-4 {
-                flex-wrap: wrap;
-                gap: 10px !important;
-            }
-            
-            .position-sticky h1.display-4 {
-                font-size: 1.75rem;
-            }
-            
-            .position-sticky h5 {
-                font-size: 0.85rem;
-                margin-right: 5px;
-            }
-        }
-        
-        @media (max-width: 480px) {
-            .floor-plan-container {
-                min-height: 420px;
-            }
-            
-            .floor-plan-wrapper {
-                transform: scale(0.45);
-                width: 350px;
-                height: 430px;
-                margin-top: -60px;
-            }
-            
-            /* Position adjustments for smaller screens */
-            .floor-plan-wrapper .table-block[id="table-A1"],
-            .floor-plan-wrapper .table-block[id="table-A2"] {
-                top: 500px !important;
-            }
-            
-            .position-sticky h1.display-4 {
-                font-size: 1.5rem;
-            }
-            
-            .position-sticky .d-flex.gap-4 {
-                display: grid !important;
-                grid-template-columns: 1fr 1fr;
-                gap: 8px !important;
-            }
-            
-            .position-sticky h5 {
-                font-size: 0.8rem;
-            }
-        }
-        
-        @media (max-width: 380px) {
-            .floor-plan-container {
-                min-height: 380px;
-                padding: 5px;
-            }
-            
-            .floor-plan-wrapper {
-                transform: scale(0.4);
-                margin-top: -70px;
-                height: 400px;
-                width: 320px;
-            }
-            
-            .table-block {
-                width: 75px;
-                height: 55px;
-            }
-            
-            /* Position adjustments for smaller screens */
-            .floor-plan-wrapper .table-block[id="table-A1"],
-            .floor-plan-wrapper .table-block[id="table-A2"] {
-                top: 480px !important;
-            }
-            
-            .position-sticky h1.display-4 {
-                font-size: 1.25rem;
-            }
-            
-            .badge.bg-info.p-2 {
-                font-size: 0.7rem;
-                padding: 0.25rem 0.5rem !important;
-            }
-        }
-        
-        /* Lock table positions in place for all screen sizes */
-        .table-block {
-            position: absolute;
-            text-align: center;
-        }
-        
-        /* Badge styling is defined further down with animations */
-
-        /* Floor Plan Elements */
-        .floor-element {
-            position: absolute;
-            cursor: move;
-        }
-
-        .table-2 {
-            width: 60px;
-            height: 40px;
-            background-color: #b8daff;
-            border-radius: 5px;
-        }
-
-        .table-4 {
-            width: 80px;
-            height: 80px;
-            background-color: #c3e6cb;
-            border-radius: 5px;
-        }
-
-        .table-6 {
-            width: 120px;
-            height: 80px;
-            background-color: #ffeeba;
-            border-radius: 5px;
-        }
-
-        .wall {
-            background-color: #6c757d;
-            min-width: 10px;
-            min-height: 100px;
-        }
-
-        .door {
-            width: 40px;
-            height: 10px;
-            background-color: #8b4513;
-        }
-
-        /* Table Grid Styles */
-        .table-grid {
-            max-height: calc(100vh - 120px);
-            overflow-y: auto;
-            padding: 1rem;
-        }
-
-        .table-grid h3 {
-            color: #212529;
-            font-size: 1.5rem;
-            margin-top: 1rem;
-        }
-        
-        .table-grid .section-description {
-            color: #6c757d;
-            margin-bottom: 1rem;
-        }
-        
-        /* Clickable table card */
-        .table-card {
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-        
-        .table-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-        }
-        
-        .table-card.expanded {
-            background-color: #f8f9fa;
-            border: 1px solid #0d6efd;
-        }
-        
-        .table-card .card-header .btn {
-            z-index: 10;
-            transition: transform 0.2s, background-color 0.2s;
-        }
-        
-        .table-card .card-header .btn:hover {
-            transform: scale(1.1);
-            background-color: #f8f9fa;
-        }
-        
-        .table-card .card-header .btn:active {
-            transform: scale(0.95);
-        }
-
-        .table-grid::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .table-grid::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-
-        .table-grid::-webkit-scrollbar-thumb {
-            background: #888;
-            border-radius: 4px;
-        }
-
-        .table-grid::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-
-        @media (max-width: 768px) {
-            .table-grid {
-                max-height: calc(100vh - 100px);
-                padding: 0.75rem;
-            }
-            
-            .table-grid h3 {
-                font-size: 1.3rem;
-            }
-            
-            .table-card .card-header h5 {
-                font-size: 1rem;
-            }
-            
-            .table-card .card-header small {
-                font-size: 0.7rem;
-            }
-        }
-        
-        @media (max-width: 576px) {
-            .table-grid {
-                padding: 0.5rem;
-            }
-            
-            .table-grid h3 {
-                font-size: 1.2rem;
-            }
-            
-            .reservation-summary .d-flex {
-                flex-direction: column;
-                align-items: flex-start !important;
-            }
-            
-            .reservation-summary .text-end {
-                text-align: left !important;
-                margin-top: 0.25rem;
-            }
-        }
-
-        /* Status Colors */
-        .bg-danger-subtle {
-            background-color: #f8d7da !important;
-        }
-
-        .bg-info-subtle {
-            background-color: #cff4fc !important;
-        }
-        
-        /* Table Type Colors */
-        .card-header.table-type-bar {
-            background-color: #6f42c1 !important;
-        }
-        
-        .card-header.table-type-table {
-            background-color: #0d6efd !important;
-        }
-        
-        .card-header.table-type-outdoor {
-            background-color: #198754 !important;
-        }
-        
-        /* Time Period Headers */
-        .list-group-item.bg-light h6 {
-            font-size: 0.85rem;
-            font-weight: bold;
-        }
-        
-        /* Lunch Period */
-        .list-group-item.period-lunch {
-            border-left: 3px solid #ffc107;
-        }
-        
-        /* Afternoon Period */
-        .list-group-item.period-afternoon {
-            border-left: 3px solid #fd7e14;
-        }
-        
-        /* Dinner Period */
-        .list-group-item.period-dinner {
-            border-left: 3px solid #dc3545;
-        }
-        
-        /* Late Night Period */
-        .list-group-item.period-late {
-            border-left: 3px solid #6610f2;
-        }
-        
-        /* Reservation summary items */
-        .reservation-summary {
-            transition: background-color 0.2s;
-        }
-        
-        .reservation-summary:hover {
-            filter: brightness(0.95);
-        }
-        
-        .reservation-summary.bg-danger-subtle:hover {
-            background-color: #f5c2c7 !important;
-        }
-        
-        .reservation-summary.bg-info-subtle:hover {
-            background-color: #b6effb !important;
-        }
-        
-        /* Time slots close button */
-        .time-slots-close-btn {
-            margin-top: 10px;
-            transition: all 0.2s;
-        }
-        
-        .time-slots-close-btn:hover {
-            background-color: #6c757d;
-            color: white;
-            transform: scale(1.05);
-        }
-        
-        /* Quick walk-in button */
-        .quick-walkin-btn {
-            transition: all 0.2s;
-        }
-        
-        .quick-walkin-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        
-        /* Current time slot highlight */
-        .current-time-slot {
-            border-left-width: 5px !important;
-            background-color: rgba(13, 110, 253, 0.15) !important;
-            border-radius: 4px;
-            box-shadow: 0 2px 4px rgba(13, 110, 253, 0.1);
-        }
-        
-        .current-time-slot small {
-            font-weight: bold;
-            color: #0d6efd;
-        }
-        
-        .current-time-slot.bg-danger-subtle,
-        .current-time-slot.bg-info-subtle {
-            background-color: inherit !important;
-        }
-
-        @media (max-width: 768px) {
-            .table-grid {
-                max-height: calc(100vh - 100px);
-            }
-        }
-
-        /* Floor Plan Styles */
-        .table-block {
-            width: 90px;
-            height: 70px;
-            background-color: white;
-            border: 2px solid #0d6efd;
-            border-radius: 8px;
-            padding: 5px;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            z-index: 10;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        
-        .table-block:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 8px rgba(255,255,255,0.3);
-            border-color: white;
-            z-index: 20;
-        }
-        
-        /* Add a pulse animation for tables with reservations */
-        @keyframes pulse-badge {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); }
-        }
-        
-        .table-status-indicator .badge {
-            font-size: 1rem;
-            font-weight: bold;
-            width: 28px;
-            height: 28px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.5);
-            border: 3px solid white;
-            color: white;
-            background-color: #ff0000 !important; /* Bright red color */
-            animation: pulse-badge 2s infinite;
-            text-shadow: 0 0 3px #000;
-            position: relative;
-            z-index: 100;
-        }
-        
-        @media (max-width: 576px) {
-            .table-block {
-                width: 80px;
-                height: 60px;
-                padding: 3px;
-            }
-        }
-        
-        @media (max-width: 380px) {
-            .table-block {
-                width: 75px;
-                height: 55px;
-                padding: 2px;
-            }
-        }
-        
-        .door-element {
-            position: absolute;
-            width: 60px;
-            height: 40px;
-            background-color: #fff;
-            border: 2px solid #fff;
-            border-radius: 0;
-            transition: all 0.3s;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 15;
-        }
-        
-        /* Remove the after pseudo-element that was adding text */
-        .door-element::after {
-            content: "";
-        }
-        
-        .door-handle {
-            position: absolute;
-            width: 8px;
-            height: 8px;
-            background-color: #333;
-            border-radius: 50%;
-            left: 10px;
-            top: 16px;
-        }
-        
-        .door-frame {
-            position: absolute;
-            width: 80px;
-            height: 60px;
-            border: 3px solid white;
-            top: -10px;
-            left: -10px;
-        }
-        
-        .table-label {
-            font-size: 1.3rem;
-            font-weight: bold;
-            color: #0d6efd;
-            margin-bottom: 2px;
-            line-height: 1;
-        }
-        
-        .table-caption {
-            font-size: 0.7rem;
-            color: #6c757d;
-            text-align: center;
-            line-height: 1;
-            word-wrap: break-word;
-            width: 100%;
-        }
-        
-        .table-status-indicator {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            z-index: 30;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .table-status-indicator .badge {
-            font-size: 0.85rem;
-            font-weight: bold;
-            width: 24px;
-            height: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 3px 6px rgba(0,0,0,0.3);
-            border: 2px solid white;
-            color: white;
-            background-color: #dc3545 !important; /* Use Bootstrap's danger color */
-            animation: pulse-badge 2s infinite;
-        }
-
-        @media (max-width: 576px) {
-            .door-element {
-                width: 50px;
-                height: 35px;
-            }
-            
-            .door-element::after {
-                font-size: 10px;
-            }
-            
-            .door-frame {
-                width: 70px;
-                height: 50px;
-            }
-            
-            .table-status-indicator .badge {
-                width: 22px;
-                height: 22px;
-                font-size: 0.8rem;
-            }
-        }
-        
-        @media (max-width: 380px) {
-            .door-element {
-                width: 40px;
-                height: 30px;
-            }
-            
-            .door-frame {
-                width: 60px;
-                height: 45px;
-            }
-            
-            .table-status-indicator .badge {
-                width: 18px;
-                height: 18px;
-                font-size: 0.65rem;
-            }
-        }
-
-        /* Table Card Mobile Improvements */
-        @media (max-width: 576px) {
-            /* Make table cards more touch-friendly */
-            .table-card {
-                margin-bottom: 15px;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            }
-            
-            .table-card .card-header {
-                padding: 10px;
-            }
-            
-            /* Make toggle buttons more touch-friendly */
-            .table-card .card-header .btn {
-                min-width: 34px;
-                min-height: 34px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            
-            /* Improve time slots display on mobile */
-            .time-slots-container .list-group-item {
-                padding: 8px 10px;
-            }
-            
-            /* Improve select dropdowns on mobile */
-            .form-select-sm {
-                padding-top: 8px;
-                padding-bottom: 8px;
-                min-height: 38px;
-            }
-            
-            /* Better spacing for reservation summaries */
-            .reservation-summary {
-                padding: 12px 10px;
-            }
-            
-            /* Improve quick walk-in button */
-            .quick-walkin-btn {
-                width: 100%;
-                margin-top: 8px;
-                padding: 8px;
-            }
-            
-            /* Fix time slots on mobile */
-            .list-group-item.period-lunch,
-            .list-group-item.period-afternoon,
-            .list-group-item.period-dinner,
-            .list-group-item.period-late {
-                padding-left: 15px;
-            }
-            
-            /* Adjust mobile container padding */
-            .container {
-                padding-left: 10px;
-                padding-right: 10px;
-            }
-            
-            /* Make sticky header more compact */
-            .position-sticky.top-0 {
-                padding-top: 10px !important;
-                padding-bottom: 10px !important;
-            }
-            
-            /* Fix scrolling issues */
-            .table-grid {
-                margin-top: 15px;
-                padding-bottom: 20px;
-                overflow-x: hidden;
-            }
-        }
-        
-        @media (max-width: 380px) {
-            .table-card .card-header .d-flex {
-                flex-wrap: wrap;
-            }
-            
-            /* Smaller buttons for very small screens */
-            .table-card .card-header .btn {
-                min-width: 30px;
-                min-height: 30px;
-                padding: 4px;
-            }
-            
-            /* Ensure text doesn't overflow */
-            .table-card .card-header h5 {
-                max-width: 75%;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-            }
-            
-            /* Stack status dropdown for very small screens */
-            .time-slots-container .d-flex {
-                flex-direction: column;
-                align-items: flex-start !important;
-            }
-            
-            .time-slots-container .form-select-sm {
-                margin-top: 5px;
-                width: 100%;
-                max-width: 100%;
-            }
-        }
-
-        /* Removed special styling for D1 table */
-
-        /* Add to your existing style section */
-        #editTablesSelect {
-            min-height: 200px;
-        }
-
-        #editTablesSelect option {
-            padding: 12px;
-            margin: 2px;
-            border-radius: 4px;
-            font-size: 16px;
-            cursor: pointer;
-            border-bottom: 1px solid #dee2e6;
-        }
-
-        #editTablesSelect option:checked {
-            background-color: #0d6efd;
-            color: white;
-        }
-
-        .modal-header {
-            background-color: #f8f9fa;
-            border-bottom: 2px solid #dee2e6;
-        }
-
-        .modal-footer {
-            background-color: #f8f9fa;
-            border-top: 2px solid #dee2e6;
-        }
-
-        /* Instructions text */
-        .select-instructions {
-            font-size: 0.875rem;
-            color: #6c757d;
-            margin-top: 0.5rem;
-        }
-
-        /* Edit button styling */
-        .btn-edit-tables {
-            background-color: #0d6efd;
-            color: white !important;
-            border: none;
-            padding: 0.375rem 0.75rem;
-            border-radius: 0.25rem;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .btn-edit-tables:hover {
-            background-color: #0b5ed7;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
-        /* Combined tables indicator */
-        .combined-tables-indicator {
-            color: #0d6efd;
-            font-size: 0.875rem;
-            margin-top: 0.25rem;
-            display: flex;
-            align-items: center;
-            gap: 0.25rem;
-        }
-
-        .combined-tables-indicator i {
-            font-size: 1rem;
-        }
-
-        /* Table selection button styles */
-        .table-select-btn {
-            min-width: 100px;
-            padding: 10px;
-            margin: 5px;
-            border: 2px solid #dee2e6;
-            border-radius: 8px;
-            background-color: white;
-            transition: all 0.2s;
-            touch-action: manipulation;
-            position: relative;
-            overflow: hidden;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        }
-
-        .table-select-btn.selected {
-            background-color: #0d6efd;
-            color: white;
-            border-color: #0d6efd;
-            transform: scale(1.05);
-        }
-
-        .table-select-btn.original {
-            border-color: #0d6efd;
-            border-width: 2px;
-        }
-
-        .table-select-btn .table-id {
-            font-weight: bold;
-            font-size: 1.1em;
-            margin-bottom: 4px;
-        }
-
-        .table-select-btn .table-info {
-            font-size: 0.85em;
-            opacity: 0.8;
-        }
-
-        /* Ripple effect */
-        .table-select-btn .ripple {
-            position: absolute;
-            border-radius: 50%;
-            background-color: rgba(255, 255, 255, 0.7);
-            transform: scale(0);
-            animation: ripple 0.6s linear;
-            pointer-events: none;
-        }
-
-        @keyframes ripple {
-            to {
-                transform: scale(4);
-                opacity: 0;
-            }
-        }
-
-        #tableButtonsContainer {
-            max-height: 300px;
-            overflow-y: auto;
-            padding: 10px;
-            background: #f8f9fa;
-            border-radius: 8px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            justify-content: center;
-        }
-
-        /* Mobile optimizations */
-        @media (max-width: 576px) {
-            .table-select-btn {
-                min-width: 80px;
-                padding: 8px;
-            }
-
-            .table-select-btn .table-id {
-                font-size: 1em;
-            }
-
-            .table-select-btn .table-info {
-                font-size: 0.75em;
-            }
-        }
-    </style>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/components/modals.css">
+    <link rel="stylesheet" href="css/components/popover-form.css">
 </head>
 <body>
     <div class="container-fluid">
@@ -952,6 +33,17 @@
                             <span>0 Reservations Today</span>
                         </h5>
                     </div>
+                    
+                    <!-- Status Color Legend -->
+                    <div class="mt-2">
+                        <div class="d-flex align-items-center gap-3 flex-wrap">
+                            <small class="text-muted fw-bold">Status Colors:</small>
+                            <span class="badge bg-danger">🔴 Reserved</span>
+                            <span class="badge bg-warning text-dark">🟠 Arrived</span>
+                            <span class="badge bg-success">🟢 Paid</span>
+                            <span class="badge bg-dark">⚫ No Show</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -968,125 +60,199 @@
                 <div class="card-body p-0">
                     <div class="floor-plan-container">
                         <div class="position-absolute top-0 start-0 m-3">
-                            <span class="badge bg-info p-2"><i class="bi bi-info-circle me-1"></i> Click on a table to view details</span>
+                            <span class="badge bg-info p-2"><i class="bi bi-info-circle me-1"></i> Click on a table to scroll to table section</span>
                         </div>
                         <div class="floor-plan-wrapper">
-                            <!-- Outdoor tables - adjusted for better spacing -->
-                            <div class="table-block" style="top: 30px; left: 110px;" onclick="console.log('Floor plan: E1 clicked'); scrollToTable('E1')">
-                                <div class="table-label">E1</div>
+                            <!-- Outdoor tables - top row -->
+                            <div class="table-block" style="top: 20px; left: 120px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('E1')">
+                                <div class="table-label" style="font-size: 0.9rem;">E1</div>
                                 <div class="table-caption">outdoor seating 6 pax</div>
                                 <div class="table-status-indicator"></div>
                             </div>
                             
-                            <div class="table-block" style="top: 30px; left: 460px;" onclick="console.log('Floor plan: E2 clicked'); scrollToTable('E2')">
-                                <div class="table-label">E2</div>
+                            <div class="table-block" style="top: 20px; left: 580px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('E2')">
+                                <div class="table-label" style="font-size: 0.9rem;">E2</div>
                                 <div class="table-caption">outdoor seating 6 pax</div>
                                 <div class="table-status-indicator"></div>
                             </div>
                             
-                            <!-- Door with better styling - moved to the right position -->
-                            <div style="position: absolute; top: 70px; left: 300px;">
+                            <!-- Door with better styling - centered between outdoor tables -->
+                            <div style="position: absolute; top: 60px; left: 370px;">
                                 <div class="door-frame"></div>
                                 <div class="door-element" onclick="console.log('Door clicked'); alert('This is the entrance door')">
                                     <div class="door-handle"></div>
                                 </div>
-                                <!-- Clear, single door label -->
                                 <div style="position: absolute; top: -30px; left: 50%; transform: translateX(-50%); background-color: black; color: white; padding: 4px 10px; font-weight: bold; border-radius: 4px; font-size: 14px; letter-spacing: 1px; border: 1px solid white; z-index: 50; white-space: nowrap;">DOOR</div>
                             </div>
 
-                            <!-- Main Floor Tables - adjusted positions for better spacing -->
-                            <div class="table-block" style="top: 140px; left: 200px;" onclick="console.log('Floor plan: B5 clicked'); scrollToTable('B5')">
-                                <div class="table-label">B5</div>
+                            <!-- Left side tables (C series) - vertical arrangement -->
+                            <div class="table-block" style="top: 120px; left: 240px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('C5')">
+                                <div class="table-label" style="font-size: 0.9rem;">C5</div>
+                                <div class="table-caption">2 pax</div>
+                                <div class="table-status-indicator"></div>
+                            </div>
+                            
+                            <div class="table-block" style="top: 210px; left: 240px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('C4')">
+                                <div class="table-label" style="font-size: 0.9rem;">C4</div>
+                                <div class="table-caption">2 pax</div>
+                                <div class="table-status-indicator"></div>
+                            </div>
+                            
+                            <div class="table-block" style="top: 300px; left: 240px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('C3')">
+                                <div class="table-label" style="font-size: 0.9rem;">C3</div>
                                 <div class="table-caption">4 pax</div>
                                 <div class="table-status-indicator"></div>
                             </div>
                             
-                            <div class="table-block" style="top: 220px; left: 200px;" onclick="console.log('Floor plan: B4 clicked'); scrollToTable('B4')">
-                                <div class="table-label">B4</div>
+                            <div class="table-block" style="top: 390px; left: 240px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('C2')">
+                                <div class="table-label" style="font-size: 0.9rem;">C2</div>
+                                <div class="table-caption">2 pax</div>
+                                <div class="table-status-indicator"></div>
+                            </div>
+                            
+                            <div class="table-block" style="top: 480px; left: 240px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('C1')">
+                                <div class="table-label" style="font-size: 0.9rem;">C1</div>
                                 <div class="table-caption">4 pax</div>
                                 <div class="table-status-indicator"></div>
                             </div>
                             
-                            <div class="table-block" style="top: 300px; left: 200px;" onclick="console.log('Floor plan: B3 clicked'); scrollToTable('B3')">
-                                <div class="table-label">B3</div>
-                                <div class="table-caption">2 pax</div>
+                            <!-- Right side tables (D series) - vertical arrangement -->
+                            <div class="table-block" style="top: 120px; left: 580px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('D3')">
+                                <div class="table-label" style="font-size: 0.9rem;">D3</div>
+                                <div class="table-caption">6 pax</div>
                                 <div class="table-status-indicator"></div>
                             </div>
                             
-                            <div class="table-block" style="top: 380px; left: 200px;" onclick="console.log('Floor plan: B2 clicked'); scrollToTable('B2')">
-                                <div class="table-label">B2</div>
+                            <div class="table-block" style="top: 260px; left: 580px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('D2')">
+                                <div class="table-label" style="font-size: 0.9rem;">D2</div>
+                                <div class="table-caption">6 pax</div>
+                                <div class="table-status-indicator"></div>
+                            </div>
+                            
+                            <div class="table-block" style="top: 400px; left: 580px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('D1')">
+                                <div class="table-label" style="font-size: 0.9rem;">D1</div>
+                                <div class="table-caption">6 pax</div>
+                                <div class="table-status-indicator"></div>
+                            </div>
+                            
+                            <!-- Bottom left tables (B series) -->
+                            <div class="table-block" style="top: 580px; left: 50px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('B1')">
+                                <div class="table-label" style="font-size: 0.9rem;">B1</div>
                                 <div class="table-caption">4 pax</div>
                                 <div class="table-status-indicator"></div>
                             </div>
                             
-                            <!-- Right side tables - adjusted for better spacing -->
-                            <div class="table-block" style="top: 140px; left: 460px;" onclick="console.log('Floor plan: D6 clicked'); scrollToTable('D6')">
-                                <div class="table-label">D6</div>
-                                <div class="table-caption">6 pax</div>
-                                <div class="table-status-indicator"></div>
-                            </div>
-                            
-                            <div class="table-block" style="top: 220px; left: 460px;" onclick="console.log('Floor plan: D5 clicked'); scrollToTable('D5')">
-                                <div class="table-label">D5</div>
-                                <div class="table-caption">6 pax</div>
-                                <div class="table-status-indicator"></div>
-                            </div>
-                            
-                            <div class="table-block" style="top: 300px; left: 460px;" onclick="console.log('Floor plan: D4 clicked'); scrollToTable('D4')">
-                                <div class="table-label">D4</div>
-                                <div class="table-caption">6 pax</div>
-                                <div class="table-status-indicator"></div>
-                            </div>
-                            
-                            <!-- Bottom tables - adjusted for better spacing -->
-                            <div class="table-block" style="top: 470px; left: 110px; width: 120px;" onclick="console.log('Floor plan: B1 clicked'); scrollToTable('B1')">
-                                <div class="table-label">B1</div>
-                                <div class="table-caption">6 pax</div>
-                                <div class="table-status-indicator"></div>
-                            </div>
-                            
-                            <div class="table-block" style="top: 470px; left: 290px;" onclick="console.log('Floor plan: C2 clicked'); scrollToTable('C2')">
-                                <div class="table-label">C2</div>
+                            <div class="table-block" style="top: 580px; left: 170px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('B2')">
+                                <div class="table-label" style="font-size: 0.9rem;">B2</div>
                                 <div class="table-caption">4 pax</div>
                                 <div class="table-status-indicator"></div>
                             </div>
                             
-                            <div class="table-block" style="top: 470px; left: 440px;" onclick="console.log('Floor plan: D3 clicked'); scrollToTable('D3')">
-                                <div class="table-label">D3</div>
+                            <!-- Bottom middle table -->
+                            <div class="table-block" style="top: 580px; left: 350px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('B3')">
+                                <div class="table-label" style="font-size: 0.9rem;">B3</div>
+                                <div class="table-caption">4 pax</div>
+                                <div class="table-status-indicator"></div>
+                            </div>
+                            
+                            <!-- Bottom right tables (B series) -->
+                            <div class="table-block" style="top: 580px; left: 580px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('B6')">
+                                <div class="table-label" style="font-size: 0.9rem;">B6</div>
                                 <div class="table-caption">2 pax</div>
                                 <div class="table-status-indicator"></div>
                             </div>
                             
-                            <!-- More bottom tables - adjusted for better spacing -->
-                            <div class="table-block" style="top: 540px; left: 290px;" onclick="console.log('Floor plan: C1 clicked'); scrollToTable('C1')">
-                                <div class="table-label">C1</div>
+                            <div class="table-block" style="top: 580px; left: 700px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('B5')">
+                                <div class="table-label" style="font-size: 0.9rem;">B5</div>
                                 <div class="table-caption">2 pax</div>
                                 <div class="table-status-indicator"></div>
                             </div>
                             
-                            <div class="table-block" style="top: 540px; left: 440px;" onclick="console.log('Floor plan: D2 clicked'); scrollToTable('D2')">
-                                <div class="table-label">D2</div>
+                            <div class="table-block" style="top: 670px; left: 700px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('B4')">
+                                <div class="table-label" style="font-size: 0.9rem;">B4</div>
                                 <div class="table-caption">2 pax</div>
                                 <div class="table-status-indicator"></div>
                             </div>
                             
-                            <div class="table-block" id="table-D1" style="top: 610px; left: 440px;" onclick="console.log('Floor plan: D1 clicked'); scrollToTable('D1')">
-                                <div class="table-label">D1</div>
-                                <div class="table-caption">2 pax</div>
+                            <!-- Bar counter seating - bottom row with better styling -->
+                            <div class="position-absolute d-flex align-items-center" style="top: 660px; left: 50px; z-index: 25;">
+                                <span class="badge bg-dark px-3 py-2 me-3" style="font-size: 14px; font-weight: 600; letter-spacing: 0.5px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                                    <i class="bi bi-cup-straw me-1"></i>BAR COUNTER - 1 pax
+                                </span>
+                            </div>
+                            
+                            <div class="table-block" style="top: 690px; left: 50px; width: 60px; height: 50px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('A1')">
+                                <div class="table-label" style="font-size: 0.9rem;">A1</div>
                                 <div class="table-status-indicator"></div>
                             </div>
                             
-                            <!-- Bar counter - longer caption so use smaller font - adjusted for better spacing -->
-                            <div class="table-block" style="top: 670px; left: 90px; width: 120px;" id="table-A1" onclick="console.log('Floor plan: A1 clicked'); scrollToTable('A1')">
-                                <div class="table-label">A1</div>
-                                <div class="table-caption" style="font-size: 0.65rem;">bar counter seating 4 pax</div>
+                            <div class="table-block" style="top: 690px; left: 120px; width: 60px; height: 50px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('A2')">
+                                <div class="table-label" style="font-size: 0.9rem;">A2</div>
                                 <div class="table-status-indicator"></div>
                             </div>
                             
-                            <div class="table-block" style="top: 670px; left: 250px; width: 120px;" id="table-A2" onclick="console.log('Floor plan: A2 clicked'); scrollToTable('A2')">
-                                <div class="table-label">A2</div>
-                                <div class="table-caption" style="font-size: 0.65rem;">bar counter seating 4 pax</div>
+                            <div class="table-block" style="top: 690px; left: 190px; width: 60px; height: 50px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('A3')">
+                                <div class="table-label" style="font-size: 0.9rem;">A3</div>
                                 <div class="table-status-indicator"></div>
+                            </div>
+                            
+                            <div class="table-block" style="top: 690px; left: 260px; width: 60px; height: 50px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('A4')">
+                                <div class="table-label" style="font-size: 0.9rem;">A4</div>
+                                <div class="table-status-indicator"></div>
+                            </div>
+                            
+                            <div class="table-block" style="top: 690px; left: 330px; width: 60px; height: 50px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('A5')">
+                                <div class="table-label" style="font-size: 0.9rem;">A5</div>
+                                <div class="table-status-indicator"></div>
+                            </div>
+                            
+                            <div class="table-block" style="top: 690px; left: 400px; width: 60px; height: 50px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('A6')">
+                                <div class="table-label" style="font-size: 0.9rem;">A6</div>
+                                <div class="table-status-indicator"></div>
+                            </div>
+                            
+                            <div class="table-block" style="top: 690px; left: 470px; width: 60px; height: 50px;" onclick="event.preventDefault(); event.stopPropagation(); scrollToTable('A7')">
+                                <div class="table-label" style="font-size: 0.9rem;">A7</div>
+                                <div class="table-status-indicator"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendly Bookings Section -->
+        <div class="container mb-4">
+            <div class="card shadow border-0">
+                <div class="card-header bg-primary text-white py-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center">
+                            <i class="bi bi-calendar-event me-2"></i>
+                            <h3 class="mb-0">Today's Calendly Bookings</h3>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-light btn-sm" onclick="updateCalendlyBookings()">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="calendly-loading" class="text-center py-4" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div class="mt-2 text-muted">Loading Calendly bookings...</div>
+                    </div>
+                    <div id="calendly-bookings" class="p-3">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card text-center">
+                                    <div class="card-body py-4">
+                                        <i class="bi bi-hourglass-split display-5 text-muted mb-3"></i>
+                                        <h6 class="text-muted">Initializing Calendly connection...</h6>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1101,1596 +267,140 @@
         </div>
     </div>
 
-    <!-- Load Airtable -->
-    <script src="https://cdn.jsdelivr.net/npm/airtable@0.12.1/lib/airtable.umd.min.js"></script>
-
-    <!-- Combined JavaScript -->
-    <script>
-        // Airtable Config
-        const AIRTABLE_CONFIG = {
-            apiKey: 'patFAhxAehjS7ooW4.065ff8cc4680ea7a527f2315d465c76dc530b6fd692f4ad456ca75bd9aa1af9d',
-            baseId: 'appHXyKvdB7cU3qF7'
-        };
-
-        // AirtableService Class
-        class AirtableService {
-            constructor() {
-                if (typeof Airtable === 'undefined') {
-                    throw new Error('Airtable library not loaded');
-                }
-                
-                try {
-                    this.base = new Airtable({
-                        apiKey: AIRTABLE_CONFIG.apiKey
-                    }).base(AIRTABLE_CONFIG.baseId);
-                    this.cachedReservations = [];
-                    this.lastFetchTime = null;
-                    this.fetchingPromise = null;
-                } catch (error) {
-                    console.error('Error initializing Airtable:', error);
-                    throw error;
-                }
-            }
-
-            async deleteReservation(recordId) {
-                try {
-                    console.log('Deleting reservation:', recordId);
-                    await this.base('tbl9dDLnVa5oLEnuq').destroy([recordId]);
-                    
-                    // Clear the cache so we fetch fresh data
-                    this.cachedReservations = [];
-                    this.lastFetchTime = null;
-                    
-                    console.log('Successfully deleted reservation');
-                    return true;
-                } catch (error) {
-                    console.error('Error deleting reservation:', error);
-                    throw error;
-                }
-            }
-
-            async updateReservationStatus(recordId, status) {
-                try {
-                    console.log('Updating reservation status:', { recordId, status });
-                    
-                    if (status === 'available') {
-                        // If status is available, delete the record
-                        return await this.deleteReservation(recordId);
-                    }
-                    
-                    // For other status updates
-                    const updateData = {
-                        'Status': status === 'phone-call' ? 'Phone call' : 'Walk in',
-                        'Reservation Type': 'Floor Plan'
-                    };
-                    
-                    console.log('Updating with data:', updateData);
-                    
-                    await this.base('tbl9dDLnVa5oLEnuq').update([{
-                        id: recordId,
-                        fields: updateData
-                    }]);
-                    
-                    // Clear the cache so we fetch fresh data
-                    this.cachedReservations = [];
-                    this.lastFetchTime = null;
-                    
-                    console.log('Successfully updated reservation status');
-                    return true;
-                } catch (error) {
-                    console.error('Detailed error updating reservation:', error);
-                    throw error;
-                }
-            }
-
-            async getReservations() {
-                try {
-                    // Check if we already have a fetch in progress
-                    if (this.fetchingPromise) {
-                        return await this.fetchingPromise;
-                    }
-                    
-                    // Cache for 30 seconds to prevent excessive API calls
-                    const now = new Date();
-                    if (this.cachedReservations.length > 0 && this.lastFetchTime && 
-                        (now.getTime() - this.lastFetchTime.getTime() < 30000)) {
-                        return this.cachedReservations;
-                    }
-                    
-                    // Get today's date in ISO format
-                    const startOfDay = new Date(now.setHours(0, 0, 0, 0)).toISOString();
-                    const endOfDay = new Date(now.setHours(23, 59, 59, 999)).toISOString();
-
-                    console.log('Fetching reservations for:', { startOfDay, endOfDay });
-
-                    // Create filter formula
-                    const filterFormula = `AND(
-                        IS_AFTER({DateandTime}, '${startOfDay}'),
-                        IS_BEFORE({DateandTime}, '${endOfDay}')
-                    )`;
-
-                    // Create a promise to store the fetch operation
-                    this.fetchingPromise = this.base('tbl9dDLnVa5oLEnuq')
-                        .select({
-                            filterByFormula: filterFormula
-                        })
-                        .all()
-                        .then(records => {
-                            const result = [];
-                            records.forEach(record => {
-                                const tableField = record.get('Table');
-                                console.log('Processing record:', {
-                                    id: record.id,
-                                    table: tableField,
-                                    time: record.get('DateandTime'),
-                                    type: record.get('Reservation Type'),
-                                    notes: record.get('Notes')
-                                });
-
-                                if (!tableField) return;
-                                const tableIds = tableField.split(',').map(t => t.trim());
-                                console.log('Table IDs:', tableIds);
-
-                                // For each table in the combined reservation
-                                tableIds.forEach(tableId => {
-                                    result.push({
-                                        id: record.id,
-                                        tableId,
-                                        tableField: tableField, // Add the original table field
-                                        time: record.get('DateandTime'),
-                                        status: record.get('Reservation Type') === 'Phone call' ? 'phone-call' : 'walk-in',
-                                        customerName: record.get('Notes'),
-                                        pax: record.get('Pax'),
-                                        reservationType: record.get('Reservation Type'),
-                                        systemNotes: record.get('System Notes'),
-                                        customerNotes: record.get('Customer Notes'),
-                                        phoneNumber: record.get('PH Number'),
-                                        combinedTables: tableIds,
-                                        isMultiTable: tableIds.length > 1
-                                    });
-                                });
-                            });
-                            
-                            console.log('Processed reservations:', result);
-                            
-                            this.cachedReservations = result;
-                            this.lastFetchTime = new Date();
-                            return result;
-                        })
-                        .finally(() => {
-                            this.fetchingPromise = null;
-                        });
-                        
-                    return await this.fetchingPromise;
-                } catch (error) {
-                    console.error('Error fetching reservations:', error);
-                    return this.cachedReservations.length > 0 ? this.cachedReservations : [];
-                }
-            }
-
-            async createWalkInReservation(tableId, dateTime, reservationType = 'walk-in') {
-                try {
-                    console.log('Creating reservation:', { tableId, dateTime, reservationType });
-                    
-                    // Properly set status based on reservation type
-                    const status = reservationType === 'phone-call' ? 'Phone call' : 'Walk in';
-                    
-                    const reservationData = {
-                        fields: {
-                            "Table": tableId,
-                            "DateandTime": dateTime.toISOString(),
-                            "Status": status,
-                            "Reservation Type": "Floor Plan"
-                        }
-                    };
-
-                    const record = await this.base('tbl9dDLnVa5oLEnuq').create([reservationData]);
-                    console.log(`Created ${status} reservation:`, record);
-                    
-                    // Clear the cache so we fetch fresh data
-                    this.cachedReservations = [];
-                    this.lastFetchTime = null;
-                    
-                    return record;
-                } catch (error) {
-                    console.error('Detailed error:', error);
-                    throw error;
-                }
-            }
-
-            async updateReservationStatus(recordId, status) {
-                try {
-                    console.log('Updating reservation status:', { recordId, status });
-                    await this.base('tbl9dDLnVa5oLEnuq').update(recordId, {
-                        'Status': status
-                    });
-                    
-                    // Clear the cache so we fetch fresh data
-                    this.cachedReservations = [];
-                    this.lastFetchTime = null;
-                    
-                    console.log('Successfully updated reservation status');
-                } catch (error) {
-                    console.error('Error updating reservation:', error);
-                    throw error;
-                }
-            }
-        }
-
-        // Main Application Code
-        // Wait for all scripts to load
-        window.addEventListener('load', function() {
-            // Initialize AirtableService
-            let airtableService;
-            try {
-                airtableService = new AirtableService();
-                // Make airtableService globally available
-                window.airtableService = airtableService;
-                console.log('AirtableService initialized successfully');
-            } catch (error) {
-                console.error('Failed to initialize AirtableService:', error);
-            }
-            
-            // Generate time slots for each table
-            function generateTimeSlots() {
-                // Define all slots from 11:30 AM to 11:30 PM - moved outside to avoid recreation
-                const timeSlotDefinitions = [
-                    { start: "11:30", end: "12:30", period: "lunch" },
-                    { start: "12:30", end: "13:30", period: "lunch" },
-                    { start: "13:30", end: "14:30", period: "lunch" },
-                    { start: "14:30", end: "15:30", period: "lunch" },
-                    { start: "15:30", end: "16:30", period: "afternoon" },
-                    { start: "16:30", end: "17:30", period: "afternoon" },
-                    { start: "17:30", end: "18:30", period: "dinner" },
-                    { start: "18:30", end: "19:30", period: "dinner" },
-                    { start: "19:30", end: "20:30", period: "dinner" },
-                    { start: "20:30", end: "21:30", period: "dinner" },
-                    { start: "21:30", end: "22:30", period: "late" },
-                    { start: "22:30", end: "23:30", period: "late" }
-                ];
-                
-                // Pre-format time strings once to avoid repeated formatting
-                const formattedTimeSlots = timeSlotDefinitions.map(slot => ({
-                    ...slot,
-                    formattedStart: formatTime(slot.start),
-                    formattedEnd: formatTime(slot.end)
-                }));
-                
-                // Create slot objects
-                return formattedTimeSlots.map(slot => ({
-                    time: `${slot.formattedStart} - ${slot.formattedEnd}`,
-                    rawTime: `${slot.start} - ${slot.end}`, // Keep raw time for data processing
-                    status: 'available',
-                    period: slot.period
-                }));
-            }
-            
-            // Format time from 24h to 12h format - memoized to avoid repetitive calculations
-            const timeFormatCache = {};
-            function formatTime(time24h) {
-                if (timeFormatCache[time24h]) {
-                    return timeFormatCache[time24h];
-                }
-                
-                const [hours, minutes] = time24h.split(':');
-                const hoursNum = parseInt(hours);
-                const ampm = hoursNum >= 12 ? 'PM' : 'AM';
-                const hours12 = hoursNum % 12 || 12;
-                const result = `${hours12}:${minutes} ${ampm}`;
-                
-                timeFormatCache[time24h] = result;
-                return result;
-            }
-            
-            // Parse time slot to get start and end date objects - cached for performance
-            const timeSlotParseCache = {};
-            function parseTimeSlot(slot, referenceDate = new Date()) {
-                const rawTime = slot.rawTime || slot.time;
-                const referenceKey = `${rawTime}_${referenceDate.toDateString()}`;
-                
-                if (timeSlotParseCache[referenceKey]) {
-                    return timeSlotParseCache[referenceKey];
-                }
-                
-                // Parse start time
-                const [startTimeStr] = rawTime.split(' - ');
-                const [startHours, startMinutes] = startTimeStr.split(':').map(Number);
-                
-                // Parse end time
-                const endTimeStr = rawTime.split(' - ')[1];
-                const [endHours, endMinutes] = endTimeStr.split(':').map(Number);
-                
-                // Create date objects
-                const startDateTime = new Date(referenceDate);
-                startDateTime.setHours(startHours, startMinutes, 0, 0);
-                
-                const endDateTime = new Date(referenceDate);
-                endDateTime.setHours(endHours, endMinutes, 0, 0);
-                
-                const result = { 
-                    startDateTime, 
-                    endDateTime, 
-                    startHours, 
-                    startMinutes, 
-                    endHours, 
-                    endMinutes 
-                };
-                
-                timeSlotParseCache[referenceKey] = result;
-                return result;
-            }
-            
-            // Check if a date falls within a time slot
-            function isTimeInSlot(date, slot) {
-                if (!date) return false;
-                
-                const { startDateTime, endDateTime } = parseTimeSlot(slot, date);
-                return date >= startDateTime && date < endDateTime;
-            }
-            
-            // Check if current time is within a time slot
-            function isCurrentTimeInSlot(slot) {
-                const now = new Date();
-                return isTimeInSlot(now, slot);
-            }
-
-            // Initialize tables
-            const tables = [
-                { id: "A1", name: "A1", capacity: 4, type: "bar counter seating" },
-                { id: "A2", name: "A2", capacity: 4, type: "bar counter seating" },
-                { id: "B1", name: "B1", capacity: 6, type: "table" },
-                { id: "B2", name: "B2", capacity: 4, type: "table" },
-                { id: "B3", name: "B3", capacity: 2, type: "table" },
-                { id: "B4", name: "B4", capacity: 4, type: "table" },
-                { id: "B5", name: "B5", capacity: 4, type: "table" },
-                { id: "C1", name: "C1", capacity: 2, type: "table" },
-                { id: "C2", name: "C2", capacity: 4, type: "table" },
-                { id: "D1", name: "D1", capacity: 2, type: "table" },
-                { id: "D2", name: "D2", capacity: 2, type: "table" },
-                { id: "D3", name: "D3", capacity: 2, type: "table" },
-                { id: "D4", name: "D4", capacity: 6, type: "table" },
-                { id: "D5", name: "D5", capacity: 6, type: "table" },
-                { id: "D6", name: "D6", capacity: 6, type: "table" },
-                { id: "E1", name: "E1", capacity: 6, type: "outdoor seating" },
-                { id: "E2", name: "E2", capacity: 6, type: "outdoor seating" }
-            ].map(table => ({
-                ...table,
-                timeSlots: generateTimeSlots()
-            }));
-
-            // Reset tables daily at midnight
-            function resetTablesDaily() {
-                const now = new Date();
-                const tomorrow = new Date(now);
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                tomorrow.setHours(0, 0, 0, 0);
-                
-                const timeUntilMidnight = tomorrow.getTime() - now.getTime();
-                
-                setTimeout(() => {
-                    // Reset all tables to initial state - CLEAR ALL RESERVATIONS
-                    // This is the important fix - we don't preserve any reservations from previous days
-                    tables.forEach(table => {
-                        // Create fresh time slots without preserving old reservations
-                        table.timeSlots = generateTimeSlots();
-                    });
-                    
-                    // Update the UI
-                    initialize();
-                    console.log('Tables reset at midnight - all reservations cleared');
-                    
-                    // Set up next day's reset
-                    resetTablesDaily();
-                }, timeUntilMidnight);
-            }
-
-            // Start the daily reset cycle
-            resetTablesDaily();
-
-            // Initialize the page
-            function initialize() {
-                // Only perform a full render if we don't already have tables rendered
-                const existingTablesContainer = document.getElementById('tables-container');
-                const shouldDoFullRender = existingTablesContainer.children.length === 0;
-                
-                // Update reservations count
-                updateReservationCount();
-                
-                if (shouldDoFullRender) {
-                    // Group tables by section
-                    const groupedTables = {};
-                    tables.forEach(table => {
-                        const section = table.id.charAt(0);
-                        if (!groupedTables[section]) {
-                            groupedTables[section] = [];
-                        }
-                        groupedTables[section].push(table);
-                    });
-                    
-                    // Sort sections alphabetically
-                    const sortedSections = Object.keys(groupedTables).sort();
-                    
-                    // Section descriptions
-                    const sectionDescriptions = {
-                        'A': 'Bar Counter Area',
-                        'B': 'Main Dining Area',
-                        'C': 'Central Tables',
-                        'D': 'Window Side Tables',
-                        'E': 'Outdoor Patio'
-                    };
-                    
-                    // Render tables by section
-                    let html = '';
-                    sortedSections.forEach(section => {
-                        html += `
-                            <div class="col-12 mb-4" id="section-container-${section}">
-                                <h3 class="border-bottom pb-2" id="section-header-${section}">Section ${section} - ${sectionDescriptions[section] || ''}</h3>
-                                <div class="row" id="section-tables-${section}">
-                                    ${groupedTables[section].map(table => renderTableColumn(table)).join('')}
-                                </div>
-                            </div>
-                        `;
-                    });
-                    
-                    document.getElementById('tables-container').innerHTML = html;
-                } else {
-                    // Incremental update - Only update tables that have changed
-                    tables.forEach((table, index) => {
-                        updateTableUI(index);
-                    });
-                }
-
-                // Start date/time updates if not already started
-                if (!window.dateTimeUpdater) {
-                    updateDateTime();
-                    window.dateTimeUpdater = setInterval(updateDateTime, 1000);
-                }
-                
-                // Update floor plan table statuses
-                updateFloorPlanTableStatuses();
-            }
-
-            // Fetch and update reservations periodically - with throttling
-            let fetchInProgress = false;
-            async function fetchAndUpdateReservations() {
-                if (!window.airtableService || fetchInProgress) return;
-
-                try {
-                    fetchInProgress = true;
-                    const reservations = await window.airtableService.getReservations();
-                    console.log('Fetched reservations:', reservations);
-                    
-                    let hasChanges = false;
-                    
-                    // First, reset all slots to available
-                    tables.forEach(table => {
-                        table.timeSlots.forEach(slot => {
-                            if (slot.status === 'walk-in' || slot.status === 'phone-call') {
-                                slot.status = 'available';
-                                slot.customerName = null;
-                                slot.pax = null;
-                                slot.combinedTables = null;
-                                slot.tableField = null;
-                                hasChanges = true;
-                            }
-                        });
-                    });
-                    
-                    // Now apply today's reservations from Airtable
-                    tables.forEach(table => {
-                        const tableReservations = reservations.filter(
-                            res => res.tableId === table.name || res.tableId === table.id
-                        );
-                        
-                        if (tableReservations.length > 0) {
-                            console.log(`Found ${tableReservations.length} reservations for table ${table.id}:`, tableReservations);
-                        }
-                        
-                        // Update tables with reservation data
-                        table.timeSlots.forEach(slot => {
-                            const reservation = tableReservations.find(res => {
-                                if (!res.time || typeof res.time !== 'string') return false;
-                                
-                                const resDate = new Date(res.time);
-                                const today = new Date();
-                                // Only consider reservations for today
-                                const isSameDay = 
-                                    resDate.getDate() === today.getDate() && 
-                                    resDate.getMonth() === today.getMonth() && 
-                                    resDate.getFullYear() === today.getFullYear();
-                                    
-                                return isSameDay && isTimeInSlot(resDate, slot);
-                            });
-
-                            if (reservation) {
-                                console.log('Applying reservation to slot:', {
-                                    tableId: table.id,
-                                    time: slot.time,
-                                    reservation
-                                });
-
-                                // Status mapping: ensure correct status values
-                                if (reservation.reservationType === 'Phone call') {
-                                    slot.status = 'phone-call';
-                                } else if (reservation.reservationType === 'Walk in' || 
-                                         reservation.reservationType === 'Google Sheet') {
-                                    slot.status = 'walk-in';
-                                } else {
-                                    // Default to the original status mapping
-                                    slot.status = reservation.status;
-                                }
-                                
-                                slot.customerName = reservation.customerName;
-                                slot.pax = reservation.pax;
-                                slot.systemNotes = reservation.systemNotes;
-                                slot.customerNotes = reservation.customerNotes;
-                                slot.phoneNumber = reservation.phoneNumber;
-                                slot.combinedTables = reservation.combinedTables;
-                                slot.tableField = reservation.tableField;
-                                slot.id = reservation.id;
-                                hasChanges = true;
-                            }
-                        });
-                    });
-
-                    // Update the UI if there were changes
-                    if (hasChanges) {
-                        console.log('Data changes detected, updating UI');
-                        initialize();
-                    } else {
-                        console.log('No data changes detected, only updating floor plan');
-                        // Always update floor plan indicators even if there were no changes
-                        updateFloorPlanTableStatuses();
-                    }
-                } catch (error) {
-                    console.error('Error fetching reservations:', error);
-                } finally {
-                    fetchInProgress = false;
-                }
-            }
-
-            // Handle status change
-            window.handleStatusChange = async function(event) {
-                const select = event.target;
-                const tableId = select.dataset.tableId;
-                const timeSlot = select.dataset.timeSlot;
-                const newStatus = select.value;
-                const previousStatus = select.getAttribute('data-previous-status') || 'available';
-                
-                console.log('Status change initiated:', {
-                    tableId,
-                    timeSlot,
-                    newStatus,
-                    previousStatus
-                });
-                
-                // Store the selected value for reverting if needed
-                select.setAttribute('data-previous-status', newStatus);
-
-                try {
-                    // Handle changing to "available" status (including from phone-call)
-                    if (newStatus === 'available') {
-                        // Find the reservation in Airtable
-                        const reservations = await window.airtableService.getReservations();
-                        const matchingReservation = reservations.find(res => {
-                            if (!res.time) return false;
-                            const resDate = new Date(res.time);
-                            return res.tableId === tableId && isTimeInSlot(resDate, { rawTime: timeSlot });
-                        });
-
-                        if (matchingReservation) {
-                            console.log('Found matching reservation to delete:', matchingReservation);
-                            
-                            // If this is part of a combined table reservation
-                            if (matchingReservation.combinedTables && matchingReservation.combinedTables.length > 1) {
-                                const remainingTables = matchingReservation.combinedTables
-                                    .filter(t => t !== tableId)
-                                    .join(', ');
-                                
-                                if (remainingTables) {
-                                    // Update the reservation to remove this table
-                                    await window.airtableService.base('tbl9dDLnVa5oLEnuq').update([{
-                                        id: matchingReservation.id,
-                                        fields: { "Table": remainingTables }
-                                    }]);
-                                } else {
-                                    // If no tables left, delete the reservation
-                                    await window.airtableService.deleteReservation(matchingReservation.id);
-                                }
-                            } else {
-                                // Single table reservation - delete it
-                                await window.airtableService.deleteReservation(matchingReservation.id);
-                            }
-                            
-                            console.log('Successfully processed reservation change');
-                            
-                            // Update local state
-                            const tableIndex = tables.findIndex(t => t.id === tableId);
-                            if (tableIndex !== -1) {
-                                const slotIndex = tables[tableIndex].timeSlots.findIndex(s => s.rawTime === timeSlot || s.time === timeSlot);
-                                if (slotIndex !== -1) {
-                                    tables[tableIndex].timeSlots[slotIndex].status = 'available';
-                                    tables[tableIndex].timeSlots[slotIndex].customerName = null;
-                                    tables[tableIndex].timeSlots[slotIndex].pax = null;
-                                }
-                            }
-                            
-                            // Force a complete UI refresh
-                            initialize();
-                        }
-                    } else if (newStatus !== 'available' && previousStatus === 'available') {
-                        // Creating a new reservation
-                        try {
-                            // Generate a date object for this time slot
-                            const now = new Date();
-                            const { startDateTime } = parseTimeSlot({ rawTime: timeSlot }, now);
-                            
-                            // Create a walk-in or phone call reservation based on selection
-                            await window.airtableService.createWalkInReservation(tableId, startDateTime, newStatus);
-                            console.log(`Successfully created ${newStatus} reservation for ${tableId} at ${timeSlot}`);
-                            
-                            // Update local state
-                            const tableIndex = tables.findIndex(t => t.id === tableId);
-                            if (tableIndex !== -1) {
-                                const slotIndex = tables[tableIndex].timeSlots.findIndex(s => s.rawTime === timeSlot || s.time === timeSlot);
-                                if (slotIndex !== -1) {
-                                    tables[tableIndex].timeSlots[slotIndex].status = newStatus;
-                                }
-                            }
-                            
-                            // Force a complete UI refresh
-                            initialize();
-                            
-                        } catch (error) {
-                            console.error('Error creating reservation:', error);
-                            select.value = previousStatus;
-                            select.setAttribute('data-previous-status', previousStatus);
-                            alert('Failed to create reservation. Please try again.');
-                        }
-                    } else {
-                        console.log('Status change not supported directly: ' + previousStatus + ' -> ' + newStatus);
-                        // For other status changes, first delete then recreate with new status
-                        if (previousStatus !== 'available' && newStatus !== 'available') {
-                            alert('To change between reservation types, please first make the table available, then create a new reservation.');
-                            select.value = previousStatus;
-                            select.setAttribute('data-previous-status', previousStatus);
-                        }
-                    }
-                } catch (error) {
-                    console.error('Error handling status change:', error);
-                    // Reset to previous status
-                    select.value = previousStatus;
-                    select.setAttribute('data-previous-status', previousStatus);
-                    alert('Failed to update reservation status');
-                }
-            };
-            
-            // Update a single table UI instead of re-rendering everything
-            function updateTableUI(tableIndex) {
-                if (tableIndex < 0 || tableIndex >= tables.length) return;
-                
-                const table = tables[tableIndex];
-                console.log(`Updating UI for table ${table.id}`);
-                console.log(`Table ${table.id} has ${table.timeSlots.filter(s => s.status === 'walk-in' || s.status === 'phone-call').length} reservations`);
-                
-                // First try to find by ID
-                let tableElement = document.getElementById(`table-card-${table.id}`);
-                if (tableElement) {
-                    tableElement = tableElement.closest('.col-xl-3, .col-lg-4, .col-md-6, .col-12');
-                }
-                
-                if (!tableElement) {
-                    console.error(`Could not find table element for ${table.id}`);
-                    // Try to force a section rebuild
-                    const sectionContainer = document.querySelector(`.row:has(#table-card-${table.id})`);
-                    if (sectionContainer) {
-                        const section = table.id.charAt(0);
-                        const sectionTables = tables.filter(t => t.id.charAt(0) === section);
-                        sectionContainer.innerHTML = sectionTables.map(t => renderTableColumn(t)).join('');
-                    } else {
-                        // If all else fails, force a full initialize
-                        console.log(`Forcing full initialize for table ${table.id}`);
-                        initialize();
-                    }
-                    return;
-                }
-                
-                // Cache the expanded state
-                const timeSlotsContainer = document.getElementById(`time-slots-${table.id}`);
-                const isExpanded = timeSlotsContainer && timeSlotsContainer.style.display === 'block';
-                
-                // Replace just this table's HTML
-                console.log(`Replacing HTML for table ${table.id}`);
-                tableElement.outerHTML = renderTableColumn(table);
-                
-                // Restore expanded state if needed
-                if (isExpanded) {
-                    const newTimeSlotsContainer = document.getElementById(`time-slots-${table.id}`);
-                    const newToggleBtn = document.getElementById(`toggle-btn-${table.id}`);
-                    const newTableCard = document.getElementById(`table-card-${table.id}`);
-                    
-                    if (newTimeSlotsContainer) {
-                        newTimeSlotsContainer.style.display = 'block';
-                    }
-                    
-                    if (newToggleBtn) {
-                        newToggleBtn.innerHTML = '<i class="bi bi-dash-circle"></i>';
-                        newToggleBtn.title = 'Hide Time Slots';
-                    }
-                    
-                    if (newTableCard) {
-                        newTableCard.classList.add('expanded');
-                    }
-                }
-                
-                // Update reservation counter
-                updateReservationCount();
-            }
-            
-            // Update reservation count without full re-rendering
-            function updateReservationCount() {
-                // Count total reservations
-                let totalReservations = 0;
-                tables.forEach(table => {
-                    const tableReservations = table.timeSlots.filter(
-                        slot => slot.status === 'walk-in' || slot.status === 'phone-call'
-                    ).length;
-                    totalReservations += tableReservations;
-                });
-                
-                // Update reservations count in the header
-                const reservationsCountEl = document.getElementById('reservations-count');
-                if (reservationsCountEl) {
-                    const reservationText = totalReservations === 1 ? 'Reservation' : 'Reservations';
-                    reservationsCountEl.innerHTML = `
-                        <i class="bi bi-calendar-check me-2"></i>
-                        <span>${totalReservations} ${reservationText} Today</span>
-                    `;
-                    
-                    // Update the color based on number of reservations
-                    if (totalReservations > 10) {
-                        reservationsCountEl.className = 'mb-0 text-danger';
-                    } else if (totalReservations > 5) {
-                        reservationsCountEl.className = 'mb-0 text-warning';
-                    } else {
-                        reservationsCountEl.className = 'mb-0 text-success';
-                    }
-                }
-            }
-
-            // Render table column - Split from renderTable for more modularity
-            function renderTableColumn(table) {
-                return `
-                    <div class="col-xl-3 col-lg-4 col-md-6 col-12 mb-4">
-                        ${renderTable(table)}
-                    </div>
-                `;
-            }
-            
-            // Render table time slots
-            function renderTable(table) {
-                // Find slots with reservations - do this calculation once instead of multiple times
-                const reservedSlots = table.timeSlots.filter(slot => 
-                    slot.status === 'walk-in' || slot.status === 'phone-call'
-                );
-                
-                // Determine header class based on table type
-                let headerClass = "bg-primary";
-                if (table.type) {
-                    if (table.type.includes("bar")) {
-                        headerClass = "table-type-bar";
-                    } else if (table.type.includes("table")) {
-                        headerClass = "table-type-table";
-                    } else if (table.type.includes("outdoor")) {
-                        headerClass = "table-type-outdoor";
-                    }
-                }
-                
-                return `
-                    <div id="table-card-${table.id}" class="card h-100 table-card" onclick="toggleTimeSlots('${table.id}')">
-                        <div class="card-header ${headerClass} text-white">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0">
-                                    ${table.name} 
-                                    ${reservedSlots.length > 0 ? 
-                                      `<span class="badge bg-warning text-dark ms-2">${reservedSlots.length}</span>` : 
-                                      ''}
-                                </h5>
-                                <button class="btn btn-sm btn-light" 
-                                        id="toggle-btn-${table.id}"
-                                        onclick="event.stopPropagation(); toggleTimeSlots('${table.id}')"
-                                        title="Show Time Slots">
-                                    <i class="bi bi-clock"></i>
-                                </button>
-                            </div>
-                            <small class="d-block text-white">${table.type ? table.type : ''} - ${table.capacity} pax</small>
-                            <small class="d-block text-white mt-1">
-                                ${reservedSlots.length > 0 ? `${reservedSlots.length} reservations today` : 'No reservations today'}
-                            </small>
-                        </div>
-                        
-                        <div class="card-body p-0">
-                            <!-- Reservations summary -->
-                            <div class="list-group list-group-flush">
-                                ${reservedSlots.length > 0 ? 
-                                  reservedSlots.map(slot => renderReservationSummary(slot, table)).join('') : 
-                                  `<div class="list-group-item text-center text-muted py-3">
-                                     <i class="bi bi-calendar-x me-2"></i>No reservations
-                                     <div class="mt-2">
-                                        <button class="btn btn-sm btn-outline-primary quick-walkin-btn" 
-                                            onclick="event.stopPropagation(); toggleTimeSlots('${table.id}')">
-                                            <i class="bi bi-plus-circle me-1"></i> Make Reservation
-                                        </button>
-                                     </div>
-                                   </div>`
-                                }
-                            </div>
-                            
-                            <!-- Expandable time slots -->
-                            <div class="list-group list-group-flush time-slots-container" id="time-slots-${table.id}" style="display: none;">
-                                ${renderTimeSlotsByPeriod(table)}
-                                
-                                <div class="list-group-item text-center">
-                                    <button class="btn btn-sm btn-secondary time-slots-close-btn" 
-                                            onclick="event.stopPropagation(); toggleTimeSlots('${table.id}')">
-                                        <i class="bi bi-x-circle me-1"></i> Close
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-            
-            // Render time slots grouped by period - extracted for better modularity
-            function renderTimeSlotsByPeriod(table) {
-                // Group time slots by period - do this once
-                const lunchSlots = table.timeSlots.filter(slot => slot.period === 'lunch');
-                const afternoonSlots = table.timeSlots.filter(slot => slot.period === 'afternoon');
-                const dinnerSlots = table.timeSlots.filter(slot => slot.period === 'dinner');
-                const lateSlots = table.timeSlots.filter(slot => slot.period === 'late');
-                
-                return `
-                    <div class="list-group-item bg-light text-center">
-                        <h6 class="mb-0">Available Time Slots</h6>
-                    </div>
-                    
-                    ${lunchSlots.length > 0 ? `
-                        <div class="list-group-item bg-light">
-                            <h6 class="mb-0">Lunch</h6>
-                        </div>
-                        ${lunchSlots.map((slot) => renderTimeSlot(slot, table)).join('')}
-                    ` : ''}
-                    
-                    ${afternoonSlots.length > 0 ? `
-                        <div class="list-group-item bg-light">
-                            <h6 class="mb-0">Afternoon</h6>
-                        </div>
-                        ${afternoonSlots.map((slot) => renderTimeSlot(slot, table)).join('')}
-                    ` : ''}
-                    
-                    ${dinnerSlots.length > 0 ? `
-                        <div class="list-group-item bg-light">
-                            <h6 class="mb-0">Dinner</h6>
-                        </div>
-                        ${dinnerSlots.map((slot) => renderTimeSlot(slot, table)).join('')}
-                    ` : ''}
-                    
-                    ${lateSlots.length > 0 ? `
-                        <div class="list-group-item bg-light">
-                            <h6 class="mb-0">Late Night</h6>
-                        </div>
-                        ${lateSlots.map((slot) => renderTimeSlot(slot, table)).join('')}
-                    ` : ''}
-                `;
-            }
-            
-            // Render reservation summary
-            function renderReservationSummary(slot, table) {
-                console.log('Rendering reservation summary:', {
-                    slot,
-                    table,
-                    combinedTables: slot.combinedTables,
-                    tableField: slot.tableField
-                });
-
-                // Get the table field from the original record
-                const tableField = slot.tableField || (slot.combinedTables ? slot.combinedTables.join(', ') : '');
-                const isMultiTable = tableField && tableField.includes(',');
-
-                return `
-                    <div class="list-group-item ${
-                        slot.status === 'phone-call' ? 'bg-danger-subtle' : 'bg-info-subtle'
-                    } reservation-summary py-2">
-                        <div class="d-flex justify-content-between align-items-center flex-wrap">
-                            <div class="me-2 mb-1 mb-sm-0">
-                                <strong>${slot.time}</strong>
-                                <small class="d-block text-muted">
-                                    ${slot.status === 'phone-call' ? 'Phone call' : 'Walk in'}
-                                </small>
-                                ${isMultiTable ? `
-                                    <small class="d-block text-primary">
-                                        <i class="bi bi-table"></i> Combined: ${tableField}
-                                    </small>
-                                ` : ''}
-                            </div>
-                            <div class="text-sm-end">
-                                <span class="badge bg-secondary">${slot.pax || table.capacity} pax</span>
-                                ${slot.customerName ? `<small class="d-block">${slot.customerName}</small>` : ''}
-                                ${slot.systemNotes ? `<div class="text-muted small mt-1"><i class="bi bi-info-circle"></i> ${slot.systemNotes}</div>` : ''}
-                                ${slot.customerNotes ? `<div class="text-muted small mt-1"><i class="bi bi-person"></i> ${slot.customerNotes}</div>` : ''}
-                                ${slot.phoneNumber ? `<div class="text-muted small mt-1"><i class="bi bi-telephone"></i> ${slot.phoneNumber}</div>` : ''}
-                            </div>
-                        </div>
-                        ${isMultiTable ? `
-                            <div class="mt-2 d-flex justify-content-end">
-                                <button class="btn btn-sm btn-primary btn-edit-tables"
-                                    onclick="event.stopPropagation(); openEditTablesModal('${slot.id}', '${tableField}')">
-                                    <i class="bi bi-pencil-square"></i> Edit Combined Tables
-                                </button>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            }
-            
-            function renderTimeSlot(slot, table) {
-                // Check if this slot is the current time
-                const isCurrentTimeSlot = isCurrentTimeInSlot(slot);
-                
-                // Add current-time-slot class if this is the current time slot
-                const currentTimeClass = isCurrentTimeSlot ? 'current-time-slot' : '';
-                
-                // Generate a unique ID for this select element based on table ID and time slot
-                const selectId = `status-select-${table.id}-${slot.rawTime ? slot.rawTime.replace(/[: ]/g, '-') : ''}`;
-
-                // Determine background class based on status
-                const bgClass = slot.status === 'phone-call' ? 'bg-danger-subtle' :
-                              slot.status === 'walk-in' ? 'bg-info-subtle' : '';
-                
-                return `
-                    <div class="list-group-item ${bgClass} period-${slot.period} ${currentTimeClass} py-2">
-                        <div class="d-flex justify-content-between align-items-center flex-wrap">
-                            <small class="me-2">
-                                ${isCurrentTimeSlot ? '<i class="bi bi-clock-fill text-primary me-1"></i>' : ''}
-                                ${slot.time}
-                            </small>
-                            <select class="form-select form-select-sm mt-1 mt-md-0" 
-                                    style="max-width: 120px"
-                                    id="${selectId}"
-                                    name="${selectId}"
-                                    data-table-id="${table.id}"
-                                    data-time-slot="${slot.rawTime || slot.time}"
-                                    data-previous-status="${slot.status}"
-                                    onclick="event.stopPropagation()"
-                                    onchange="event.stopPropagation(); handleStatusChange(event)">
-                                <option value="available" ${slot.status === 'available' ? 'selected' : ''}>Available</option>
-                                <option value="walk-in" ${slot.status === 'walk-in' ? 'selected' : ''}>Walk-in</option>
-                                <option value="phone-call" ${slot.status === 'phone-call' ? 'selected' : ''}>Phone Call</option>
-                            </select>
-                        </div>
-                        ${(slot.status === 'phone-call' || slot.status === 'walk-in') && slot.customerName ? `
-                            <div class="d-flex justify-content-between align-items-center mt-1 flex-wrap">
-                                <small class="text-muted me-2">
-                                    ${slot.status === 'phone-call' ? 'Phone call' : 'Walk in'}
-                                    ${slot.pax ? ` - ${slot.pax} pax` : ''}
-                                </small>
-                                <small class="text-muted">
-                                    ${slot.customerName}
-                                </small>
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            }
-
-            // Update date and time
-            function updateDateTime() {
-                const now = new Date();
-                document.getElementById('current-time').textContent = 
-                    now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                document.getElementById('current-date').textContent = 
-                    now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-            }
-
-            // Start the application
-            initialize();
-            
-            // Function to adjust table positions for small screens
-            function adjustTablePositionsForMobile() {
-                const a1Table = document.getElementById('table-A1');
-                const a2Table = document.getElementById('table-A2');
-                
-                if (!a1Table || !a2Table) return;
-                
-                if (window.innerWidth <= 380) {
-                    a1Table.style.top = '510px';
-                    a2Table.style.top = '510px';
-                } else if (window.innerWidth <= 480) {
-                    a1Table.style.top = '530px';
-                    a2Table.style.top = '530px';
-                } else if (window.innerWidth <= 576) {
-                    a1Table.style.top = '550px';
-                    a2Table.style.top = '550px';
-                } else if (window.innerWidth <= 768) {
-                    a1Table.style.top = '580px';
-                    a2Table.style.top = '580px';
-                } else {
-                    // Reset to original positions for larger screens
-                    a1Table.style.top = '670px';
-                    a2Table.style.top = '670px';
-                }
-                
-                // Adjust other mobile-specific UI elements
-                if (window.innerWidth <= 576) {
-                    // Make dropdown controls more touch-friendly on mobile
-                    const selects = document.querySelectorAll('.form-select-sm');
-                    selects.forEach(select => {
-                        select.style.height = '38px';  // Increase touch target size
-                    });
-                    
-                    // Ensure proper spacing in the header on very small screens
-                    if (window.innerWidth <= 380) {
-                        const headerItems = document.querySelectorAll('.position-sticky .mb-2');
-                        headerItems.forEach(item => {
-                            item.style.marginBottom = '10px !important';
-                        });
-                    }
-                }
-            }
-            
-            // Run adjustments on page load
-            adjustTablePositionsForMobile();
-            
-            // Run when window is resized
-            window.addEventListener('resize', adjustTablePositionsForMobile);
-
-            // Initial fetch and start periodic updates
-            // Debug logging for Airtable data
-            console.log('Starting initial reservation fetch...');
-            setTimeout(() => {
-                fetchAndUpdateReservations().then(() => {
-                    console.log('Initial reservation fetch complete');
-                    console.log('Tables data after fetch:', tables.map(t => ({
-                        id: t.id,
-                        reservations: t.timeSlots.filter(s => s.status === 'walk-in' || s.status === 'phone-call').length
-                    })));
-                    
-                    // Force update of tables with reservations
-                    tables.forEach((table, index) => {
-                        const reservationCount = table.timeSlots.filter(
-                            s => s.status === 'walk-in' || s.status === 'phone-call'
-                        ).length;
-                        
-                        if (reservationCount > 0) {
-                            console.log(`Found ${reservationCount} reservations for table ${table.id}, forcing UI update`);
-                            updateTableUI(index);
-                        }
-                    });
-                    
-                    // Make sure floor plan is updated after fetch
-                    updateFloorPlanTableStatuses();
-                    
-                    // Force update again after a short delay to ensure DOM is ready
-                    setTimeout(() => {
-                        console.log('Forcing another floor plan update to ensure indicators are visible');
-                        updateFloorPlanTableStatuses();
-                        
-                        // Force one final UI refresh to ensure everything is in sync
-                        initialize();
-                    }, 1000);
-                });
-            }, 500); // Short delay to ensure DOM is fully loaded
-            
-            window.reservationUpdater = setInterval(fetchAndUpdateReservations, 30000); // Update every 30 seconds
-            
-            // Add a separate interval to update floor plan indicators frequently
-            window.floorPlanUpdater = setInterval(() => {
-                console.log('Regular floor plan status update');
-                updateFloorPlanTableStatuses();
-            }, 5000); // Update every 5 seconds
-            
-            // NOTE: Test reservation functionality has been removed
-            // as we only want to display actual Airtable reservations for the current day
-            
-            // Toggle time slots visibility
-            window.toggleTimeSlots = function(tableId) {
-                const timeSlotsContainer = document.getElementById(`time-slots-${tableId}`);
-                const toggleBtn = document.getElementById(`toggle-btn-${tableId}`);
-                const tableCard = document.getElementById(`table-card-${tableId}`);
-                
-                if (timeSlotsContainer) {
-                    const isCurrentlyHidden = timeSlotsContainer.style.display === 'none' || !timeSlotsContainer.style.display;
-                    
-                    // Close all other open time slots on mobile for better UX
-                    if (isCurrentlyHidden && window.innerWidth <= 768) {
-                        const allTimeSlots = document.querySelectorAll('.time-slots-container');
-                        allTimeSlots.forEach(container => {
-                            if (container.id !== `time-slots-${tableId}` && container.style.display === 'block') {
-                                container.style.display = 'none';
-                                
-                                // Find and update the corresponding toggle button and card
-                                const otherTableId = container.id.replace('time-slots-', '');
-                                const otherToggleBtn = document.getElementById(`toggle-btn-${otherTableId}`);
-                                const otherTableCard = document.getElementById(`table-card-${otherTableId}`);
-                                
-                                if (otherToggleBtn) {
-                                    otherToggleBtn.innerHTML = '<i class="bi bi-clock"></i>';
-                                    otherToggleBtn.title = 'Show Time Slots';
-                                }
-                                
-                                if (otherTableCard) {
-                                    otherTableCard.classList.remove('expanded');
-                                }
-                            }
-                        });
-                    }
-                    
-                    if (isCurrentlyHidden) {
-                        timeSlotsContainer.style.display = 'block';
-                        if (toggleBtn) {
-                            toggleBtn.innerHTML = '<i class="bi bi-dash-circle"></i>';
-                            toggleBtn.title = 'Hide Time Slots';
-                        }
-                        if (tableCard) {
-                            tableCard.classList.add('expanded');
-                        }
-                        
-                        // Add scrolling functionality when expanding for all tables
-                        // Use a slight delay to allow the DOM to update before scrolling
-                        setTimeout(() => {
-                            const tableCardParent = tableCard.closest('.col-xl-3, .col-lg-4, .col-md-6, .col-12');
-                            const elementToScroll = tableCardParent || tableCard;
-                            
-                            // Use direct scrollIntoView - more reliable than offset calculation
-                            elementToScroll.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'center'
-                            });
-                            
-                            // Highlight the table with a flash effect
-                            tableCard.style.transition = 'background-color 0.5s';
-                            tableCard.style.backgroundColor = '#e6f2ff';
-                            
-                            // Remove highlight after a delay
-                            setTimeout(() => {
-                                tableCard.style.backgroundColor = '';
-                            }, 2000);
-                        }, 300);
-                    } else {
-                        timeSlotsContainer.style.display = 'none';
-                        if (toggleBtn) {
-                            toggleBtn.innerHTML = '<i class="bi bi-clock"></i>';
-                            toggleBtn.title = 'Show Time Slots';
-                        }
-                        if (tableCard) {
-                            tableCard.classList.remove('expanded');
-                        }
-                    }
-                } else {
-                    console.log(`Time slots container for table ${tableId} not found, forcing initialization`);
-                    
-                    // Force a full initialization of all tables
-                    initialize();
-                    
-                    // Try again after a short delay to ensure the DOM has updated
-                    setTimeout(() => {
-                        const retryContainer = document.getElementById(`time-slots-${tableId}`);
-                        const retryBtn = document.getElementById(`toggle-btn-${tableId}`);
-                        const retryCard = document.getElementById(`table-card-${tableId}`);
-                        
-                        if (retryContainer) {
-                            console.log(`Found time slots container for table ${tableId} after initialization`);
-                            retryContainer.style.display = 'block';
-                            
-                            if (retryBtn) {
-                                retryBtn.innerHTML = '<i class="bi bi-dash-circle"></i>';
-                                retryBtn.title = 'Hide Time Slots';
-                            }
-                            
-                            if (retryCard) {
-                                retryCard.classList.add('expanded');
-                                
-                                // Add scrolling for all tables after initialization
-                                setTimeout(() => {
-                                    const tableParent = retryCard.closest('.col-xl-3, .col-lg-4, .col-md-6, .col-12');
-                                    const elementToScroll = tableParent || retryCard;
-                                    
-                                    elementToScroll.scrollIntoView({ 
-                                        behavior: 'smooth',
-                                        block: 'center'
-                                    });
-                                }, 200);
-                            }
-                        } else {
-                            console.error(`Time slots container for table ${tableId} still not found after initialization`);
-                        }
-                    }, 200); // Increased delay for reliability
-                }
-            };
-            
-            // Function to scroll to and highlight a table from floor plan
-            window.scrollToTable = function(tableId) {
-                console.log(`Attempting to scroll to table ${tableId}`);
-                
-                // Find the table card element
-                const tableElement = document.getElementById(`table-card-${tableId}`);
-                if (tableElement) {
-                    console.log(`Found table card for ${tableId}:`, tableElement);
-                    
-                    // First make sure the time slots are expanded
-                    const timeSlotsContainer = document.getElementById(`time-slots-${tableId}`);
-                    const toggleBtn = document.getElementById(`toggle-btn-${tableId}`);
-                    
-                    // Close all other open time slots for better UX
-                    const allTimeSlots = document.querySelectorAll('.time-slots-container');
-                    allTimeSlots.forEach(container => {
-                        if (container.id !== `time-slots-${tableId}` && container.style.display === 'block') {
-                            container.style.display = 'none';
-                            
-                            // Find and update the corresponding toggle button and card
-                            const otherTableId = container.id.replace('time-slots-', '');
-                            const otherToggleBtn = document.getElementById(`toggle-btn-${otherTableId}`);
-                            const otherTableCard = document.getElementById(`table-card-${otherTableId}`);
-                            
-                            if (otherToggleBtn) {
-                                otherToggleBtn.innerHTML = '<i class="bi bi-clock"></i>';
-                                otherToggleBtn.title = 'Show Time Slots';
-                            }
-                            
-                            if (otherTableCard) {
-                                otherTableCard.classList.remove('expanded');
-                            }
-                        }
-                    });
-                    
-                    // Always expand the time slots when clicking from the floor plan
-                    if (timeSlotsContainer) {
-                        timeSlotsContainer.style.display = 'block';
-                    }
-                    
-                    if (toggleBtn) {
-                        toggleBtn.innerHTML = '<i class="bi bi-dash-circle"></i>';
-                        toggleBtn.title = 'Hide Time Slots';
-                    }
-                    
-                    tableElement.classList.add('expanded');
-                    
-                    // Simpler scrolling approach - more reliable than calculating offsets
-                    // Small delay to allow the time slots to expand first
-                    setTimeout(() => {
-                        // Find the parent column element for more accurate scrolling
-                        const tableParent = tableElement.closest('.col-xl-3, .col-lg-4, .col-md-6, .col-12');
-                        
-                        // Use scrollIntoView with the parent element if available, otherwise use the table card
-                        const elementToScroll = tableParent || tableElement;
-                        
-                        // Scroll directly to the element
-                        elementToScroll.scrollIntoView({
-                            behavior: 'smooth',
-                            block: 'center'
-                        });
-                        
-                        // Highlight effect
-                        tableElement.style.transition = 'background-color 0.5s';
-                        tableElement.style.backgroundColor = '#e6f2ff';
-                        
-                        setTimeout(() => {
-                            tableElement.style.backgroundColor = '';
-                        }, 2000);
-                    }, 300);
-                } else {
-                    // If the element doesn't exist, we need to make sure all tables are properly rendered
-                    console.warn(`Table card ${tableId} not found, forcing complete initialization`);
-                    
-                    // Force a full initialization of all tables
-                    initialize();
-                    
-                    // Try again after a longer delay to ensure the DOM has updated
-                    setTimeout(() => {
-                        const retryElement = document.getElementById(`table-card-${tableId}`);
-                        if (retryElement) {
-                            console.log(`Found table ${tableId} after initialization, trying scroll again`);
-                            // Call scrollToTable again with the same tableId
-                            scrollToTable(tableId);
-                        } else {
-                            console.error(`Table ${tableId} still not found after initialization`);
-                            // Last resort - try to scroll based on section
-                            const section = tableId.charAt(0);
-                            // Use the section header ID directly
-                            const sectionHeader = document.getElementById(`section-header-${section}`);
-                            if (sectionHeader) {
-                                console.log(`Scrolling to section ${section} as fallback`);
-                                sectionHeader.scrollIntoView({ 
-                                    behavior: 'smooth',
-                                    block: 'start'
-                                });
-                            }
-                        }
-                    }, 500); // Increased delay for full initialization
-                }
-            };
-            
-            // Function to update floor plan table statuses
-            function updateFloorPlanTableStatuses() {
-                console.log('Updating floor plan table statuses...');
-                tables.forEach(table => {
-                    // Find if this table has any reservations
-                    const reservedSlots = table.timeSlots.filter(slot => 
-                        slot.status === 'walk-in' || slot.status === 'phone-call'
-                    );
-                    
-                    const hasReservations = reservedSlots.length > 0;
-                    const reservationCount = reservedSlots.length;
-                    
-                    if (table.id === 'A1' || table.id === 'A2') {
-                        console.log(`Table ${table.id} has ${reservationCount} reservations:`, reservedSlots);
-                    }
-                    
-                    // Find the corresponding table block in the floor plan - first by ID
-                    const tableBlockById = document.querySelector(`#table-${table.id}`);
-                    // If not found by ID, try by the onclick attribute
-                    const tableBlockByOnClick = document.querySelector(`.table-block[onclick*="'${table.id}'"]`);
-                    
-                    const tableBlock = tableBlockById || tableBlockByOnClick;
-                    
-                    if (!tableBlock) {
-                        console.error(`Could not find tableBlock for ${table.id}`);
-                        return;
-                    }
-                    
-                    if (table.id === 'A1' || table.id === 'A2') {
-                        console.log(`Found tableBlock for ${table.id}:`, tableBlock);
-                    }
-                    
-                    // Get the existing status indicator
-                    const existingIndicator = tableBlock.querySelector('.table-status-indicator');
-                    
-                    if (existingIndicator) {
-                        // Clear existing indicator content
-                        existingIndicator.innerHTML = '';
-                        
-                        // Update indicator with reservation info if needed
-                        if (hasReservations) {
-                            const badge = document.createElement('span');
-                            badge.className = 'badge bg-danger rounded-circle';
-                            badge.textContent = reservationCount;
-                            badge.style.fontWeight = 'bold';
-                            badge.style.border = '3px solid white';
-                            badge.style.zIndex = '100';
-                            badge.style.textShadow = '0 0 3px black';
-                            badge.style.fontSize = '1rem';
-                            badge.style.width = '28px';
-                            badge.style.height = '28px';
-                            badge.style.display = 'flex';
-                            badge.style.alignItems = 'center';
-                            badge.style.justifyContent = 'center';
-                            badge.style.backgroundColor = '#ff0000';
-                            badge.style.boxShadow = '0 3px 6px rgba(0,0,0,0.5)';
-                            badge.style.animation = 'pulse-badge 2s infinite';
-                            existingIndicator.appendChild(badge);
-                            
-                            if (table.id === 'A1' || table.id === 'A2') {
-                                console.log(`Added status indicator badge to ${table.id} with count ${reservationCount}`);
-                            }
-                        } else {
-                            if (table.id === 'A1' || table.id === 'A2') {
-                                console.log(`No reservations for ${table.id}, no badge added`);
-                            }
-                        }
-                    } else {
-                        console.error(`No status indicator found for ${table.id}`);
-                        
-                        // Create indicator if it doesn't exist but has reservations
-                        if (hasReservations) {
-                            const indicator = document.createElement('div');
-                            indicator.className = 'table-status-indicator';
-                            const badge = document.createElement('span');
-                            badge.className = 'badge bg-danger rounded-circle';
-                            badge.textContent = reservationCount;
-                            badge.style.fontWeight = 'bold';
-                            badge.style.border = '3px solid white'; 
-                            badge.style.zIndex = '100';
-                            badge.style.textShadow = '0 0 3px black';
-                            badge.style.fontSize = '1rem';
-                            badge.style.width = '28px';
-                            badge.style.height = '28px';
-                            badge.style.display = 'flex';
-                            badge.style.alignItems = 'center';
-                            badge.style.justifyContent = 'center';
-                            badge.style.backgroundColor = '#ff0000';
-                            badge.style.boxShadow = '0 3px 6px rgba(0,0,0,0.5)';
-                            badge.style.animation = 'pulse-badge 2s infinite';
-                            indicator.appendChild(badge);
-                            tableBlock.appendChild(indicator);
-                            
-                            if (table.id === 'A1' || table.id === 'A2') {
-                                console.log(`Created new status indicator for ${table.id}`);
-                            }
-                        }
-                    }
-                });
-            }
-
-            // Save changes to Airtable
-            window.saveEditTables = async function() {
-                const selectedButtons = document.querySelectorAll('.table-select-btn.selected');
-                const selectedTables = Array.from(selectedButtons).map(btn => btn.dataset.tableId);
-                const reservationId = document.getElementById('editTablesReservationId').value;
-                const originalTables = document.getElementById('editTablesOriginalTables').value.split(',').map(t => t.trim());
-                
-                console.log('Saving table changes:', { 
-                    reservationId, 
-                    originalTables,
-                    selectedTables 
-                });
-                
-                // Show loading state
-                const saveButton = document.querySelector('#editTablesModal .btn-primary');
-                const originalButtonText = saveButton.innerHTML;
-                saveButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
-                saveButton.disabled = true;
-                
-                // Validation checks
-                if (selectedTables.length === 0) {
-                    alert('Please select at least one table.');
-                    saveButton.innerHTML = originalButtonText;
-                    saveButton.disabled = false;
-                    return;
-                }
-
-                // Ensure at least one original table is maintained
-                const maintainsOriginalTable = selectedTables.some(table => originalTables.includes(table));
-                if (!maintainsOriginalTable) {
-                    alert('You must keep at least one of the original tables in the combination.');
-                    saveButton.innerHTML = originalButtonText;
-                    saveButton.disabled = false;
-                    return;
-                }
-                
-                try {
-                    await window.airtableService.base('tbl9dDLnVa5oLEnuq').update([{
-                        id: reservationId,
-                        fields: { "Table": selectedTables.join(', ') }
-                    }]);
-                    
-                    console.log('Successfully updated tables in Airtable');
-                    
-                    // Clear cache and fetch fresh data
-                    window.airtableService.cachedReservations = [];
-                    window.airtableService.lastFetchTime = null;
-                    
-                    // Hide modal
-                    bootstrap.Modal.getInstance(document.getElementById('editTablesModal')).hide();
-                    
-                    // Show success message
-                    const toast = document.createElement('div');
-                    toast.className = 'position-fixed top-0 start-50 translate-middle-x p-3';
-                    toast.style.zIndex = '9999';
-                    toast.innerHTML = `
-                        <div class="toast show bg-success text-white" role="alert">
-                            <div class="toast-body">
-                                <i class="bi bi-check-circle me-2"></i>Tables updated successfully!
-                            </div>
-                        </div>
-                    `;
-                    document.body.appendChild(toast);
-                    
-                    // Remove toast after 3 seconds
-                    setTimeout(() => toast.remove(), 3000);
-                    
-                    // Fetch new data and update UI
-                    await fetchAndUpdateReservations();
-                    initialize();
-                    
-                } catch (err) {
-                    console.error('Failed to update tables:', err);
-                    alert('Failed to update tables: ' + err.message);
-                } finally {
-                    saveButton.innerHTML = originalButtonText;
-                    saveButton.disabled = false;
-                }
-            };
-
-            // Add these new functions for table editing
-            window.openEditTablesModal = function(reservationId, currentTables) {
-                console.log('Opening edit tables modal:', { reservationId, currentTables });
-                
-                // Store and display original tables first
-                const originalTables = currentTables.split(',').map(t => t.trim());
-                document.getElementById('editTablesOriginalTables').value = currentTables;
-                document.getElementById('originalTablesDisplay').textContent = currentTables;
-                document.getElementById('editTablesReservationId').value = reservationId;
-                
-                // Create touch-friendly buttons for table selection
-                const container = document.getElementById('tableButtonsContainer');
-                container.innerHTML = tables.map(table => {
-                    const isOriginal = originalTables.includes(table.id);
-                    const classes = [
-                        'table-select-btn',
-                        isOriginal ? 'original' : '',
-                        isOriginal ? 'selected' : ''
-                    ].filter(Boolean).join(' ');
-
-                    return `
-                        <button type="button" 
-                                class="${classes}"
-                                data-table-id="${table.id}">
-                            <div class="table-id">${table.id}</div>
-                            <div class="table-info">${table.capacity} pax - ${table.type}</div>
-                        </button>
-                    `;
-                }).join('');
-
-                // Add event listeners to all table selection buttons
-                container.querySelectorAll('.table-select-btn').forEach(button => {
-                    button.addEventListener('click', function(event) {
-                        event.stopPropagation();
-                        
-                        // Add ripple effect
-                        const ripple = document.createElement('div');
-                        ripple.className = 'ripple';
-                        const rect = this.getBoundingClientRect();
-                        const size = Math.max(rect.width, rect.height);
-                        ripple.style.width = ripple.style.height = size + 'px';
-                        ripple.style.left = event.clientX - rect.left - size/2 + 'px';
-                        ripple.style.top = event.clientY - rect.top - size/2 + 'px';
-                        this.appendChild(ripple);
-                        setTimeout(() => ripple.remove(), 600);
-
-                        // Toggle selection
-                        this.classList.toggle('selected');
-
-                        // Check if at least one original table is still selected
-                        const originalTables = document.getElementById('editTablesOriginalTables').value.split(',').map(t => t.trim());
-                        const selectedButtons = document.querySelectorAll('.table-select-btn.selected');
-                        const selectedTableIds = Array.from(selectedButtons).map(btn => btn.dataset.tableId);
-                        const maintainsOriginalTable = selectedTableIds.some(id => originalTables.includes(id));
-
-                        if (!maintainsOriginalTable) {
-                            // If no original table is selected, revert the selection
-                            this.classList.toggle('selected');
-                            alert('You must keep at least one of the original tables in the combination.');
-                        }
-                    });
-                });
-
-                const modal = new bootstrap.Modal(document.getElementById('editTablesModal'));
-                modal.show();
-            };
-        });
-    </script>
-
-    <!-- Bootstrap Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-
-    <!-- Edit Tables Modal -->
-    <div class="modal fade" id="editTablesModal" tabindex="-1" aria-labelledby="editTablesModalLabel" aria-hidden="true">
+    <!-- Bootstrap Reservation Modal -->
+    <div class="modal fade" id="reservationModal" tabindex="-1" aria-labelledby="reservationModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="editTablesModalLabel">Edit Combined Tables</h5>
+                    <h5 class="modal-title" id="reservationModalLabel">Make Reservation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="reservationForm">
+                        <!-- Table Info -->
+                        <div class="mb-3">
+                            <div class="alert alert-info">
+                                <h6 class="mb-1" id="selectedTableInfo">Table Information</h6>
+                                <small id="selectedTableDetails">Select a table to view details</small>
+                            </div>
+                        </div>
+
+                        <!-- Source, Status, Guests -->
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label">Source</label>
+                                <select class="form-select" id="reservationSource" required>
+                                    <option value="walk-in" selected>Walk-in</option>
+                                    <option value="phone-call">Phone Call</option>
+                                    <option value="calendly">Calendly</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Status</label>
+                                <select class="form-select" id="reservationStatus" required>
+                                    <option value="reserved" selected>Reserved</option>
+                                    <option value="arrived">Arrived</option>
+                                    <option value="paid">Paid</option>
+                                    <option value="no-show">No Show</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Guests</label>
+                                <select class="form-select" id="numberOfGuests" required>
+                                    <option value="">Select</option>
+                                    <option value="1">1 guest</option>
+                                    <option value="2">2 guests</option>
+                                    <option value="3">3 guests</option>
+                                    <option value="4">4 guests</option>
+                                    <option value="5">5 guests</option>
+                                    <option value="6">6 guests</option>
+                                    <option value="7">7+ guests</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Time and Duration -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Arrival Time</label>
+                                <input type="time" class="form-control" id="arrivalTime" required min="11:30" max="23:00">
+                                <div class="form-text">Hours: 11:30 AM - 11:00 PM</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Duration</label>
+                                <select class="form-select" id="duration" required>
+                                    <option value="">Select duration</option>
+                                    <option value="30">30 minutes</option>
+                                    <option value="60">1 hour</option>
+                                    <option value="90">1.5 hours</option>
+                                    <option value="120">2 hours</option>
+                                </select>
+                                <div class="form-text">
+                                    <span id="durationRule">Select time for recommendations</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Customer Info -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label">Customer Name <small>(Optional)</small></label>
+                                <input type="text" class="form-control" id="customerName" placeholder="Enter name (optional)">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Phone Number <small>(Optional)</small></label>
+                                <input type="tel" class="form-control" id="phoneNumber" placeholder="Enter phone (optional)">
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="mb-3">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" id="customerNotes" rows="3" placeholder="Any special requests or notes..."></textarea>
+                        </div>
+
+                        <input type="hidden" id="selectedTableId">
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmReservation">Confirm Reservation</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Tables Modal -->
+    <div class="modal fade" id="editTablesModal" tabindex="-1" aria-labelledby="editTablesModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editTablesModalLabel">Edit Table Assignment</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Original Tables</label>
-                        <div id="originalTablesDisplay" class="form-control-plaintext"></div>
+                        <label class="form-label">Current Tables</label>
+                        <div id="originalTablesDisplay" class="alert alert-info"></div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Select Tables to Combine</label>
-                        <div id="tableButtonsContainer" class="d-flex flex-wrap gap-2">
+                        <label class="form-label">Select New Table Combination</label>
+                        <div id="tableButtonsContainer" class="border rounded p-3" style="max-height: 400px; overflow-y: auto;">
                             <!-- Table buttons will be added here dynamically -->
                         </div>
                         <div class="select-instructions mt-2">
-                            <p class="mb-1">
-                                <i class="bi bi-info-circle text-info"></i>
-                                Tap to select/unselect tables
-                            </p>
-                            <p class="mb-1">
-                                <i class="bi bi-exclamation-circle text-warning"></i>
-                                You must keep at least one original table
-                            </p>
+                            <div class="d-flex align-items-center text-info mb-1">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <span>Click tables to select/unselect them for this reservation</span>
+                            </div>
+                            <div class="d-flex align-items-center text-success mb-1">
+                                <i class="bi bi-check-circle me-2"></i>
+                                <span>You can completely change the table combination</span>
+                            </div>
+                            <div class="d-flex align-items-center text-warning">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                <span>Make sure selected tables can accommodate the party size</span>
+                            </div>
                         </div>
                     </div>
                     <!-- Hidden inputs for storing data -->
@@ -2699,10 +409,177 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="saveEditTables()">Save Changes</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEditTables()">Update Tables</button>
                 </div>
             </div>
         </div>
     </div>
+
+    <!-- Load Airtable -->
+    <script src="https://cdn.jsdelivr.net/npm/airtable@0.12.1/lib/airtable.umd.min.js"></script>
+    <!-- Bootstrap Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JavaScript -->
+    <script src="js/calendly.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/main.js"></script>
+    <script src="js/functions.js"></script>
+    <script src="js/handlers.js"></script>
+
+    <!-- Reservation Popover -->
+    <div id="reservationPopover" class="reservation-popover">
+        <div class="reservation-popover-header">
+            <h5 class="reservation-popover-title">Make Reservation</h5>
+            <button type="button" class="reservation-popover-close" onclick="closeReservationPopover()">×</button>
+        </div>
+        <div class="reservation-popover-body">
+            <form id="reservationForm" onsubmit="handleReservationSubmit(event)">
+                <input type="hidden" id="selectedTableId" name="selectedTableId">
+                
+                <!-- Table Info -->
+                <div class="table-info alert alert-info mb-3 py-2">
+                    <!-- Will be populated dynamically -->
+                </div>
+                
+                <!-- Source and Status -->
+                <div class="source-status-section">
+                    <div class="form-group">
+                        <label class="form-label" for="reservationSource">Source</label>
+                        <select class="form-select" id="reservationSource" name="source" required>
+                            <option value="walk-in" selected>Walk-in</option>
+                            <option value="phone-call">Phone Call</option>
+                            <option value="calendly">Calendly</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="reservationStatus">Status</label>
+                        <select class="form-select" id="reservationStatus" name="status" required>
+                            <option value="Reserved">Reserved</option>
+                            <option value="Arrived">Arrived</option>
+                            <option value="Paid">Paid</option>
+                            <option value="No Show">No Show</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Number of Guests -->
+                <div class="form-group">
+                    <label class="form-label" for="popoverNumberOfGuests">Number of Guests</label>
+                    <select class="form-select" id="popoverNumberOfGuests" name="numberOfGuests" required>
+                        <!-- Will be populated dynamically -->
+                    </select>
+                </div>
+                
+                <!-- Arrival Time -->
+                <div class="form-group">
+                    <label class="form-label" for="arrivalTime">Arrival Time</label>
+                    <input type="time" class="form-control" id="arrivalTime" name="arrivalTime" required min="11:30" max="23:00">
+                    <small id="durationRule" class="form-text text-muted"></small>
+                </div>
+                
+                <!-- Duration -->
+                <div class="form-group">
+                    <label class="form-label" for="duration">Duration</label>
+                    <select class="form-select" id="duration" name="duration" required>
+                        <option value="60">1 hour</option>
+                        <option value="90">1.5 hours</option>
+                        <option value="120">2 hours</option>
+                        <option value="150">2.5 hours</option>
+                        <option value="180">3 hours</option>
+                    </select>
+                </div>
+                
+                <!-- Customer Details -->
+                <div class="form-group">
+                    <label class="form-label" for="customerName">Customer Name</label>
+                    <input type="text" class="form-control" id="customerName" name="customerName">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="phoneNumber">Phone Number</label>
+                    <input type="tel" class="form-control" id="phoneNumber" name="phoneNumber">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label" for="customerNotes">Notes</label>
+                    <textarea class="form-control" id="customerNotes" name="customerNotes" rows="2"></textarea>
+                </div>
+                
+                <!-- Form Buttons -->
+                <div class="d-flex justify-content-end gap-2 mt-3">
+                    <button type="button" class="btn btn-secondary" onclick="closeReservationPopover()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Confirm</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Reservation Display Template -->
+    <template id="reservationTemplate">
+        <div class="reservation-summary p-3 border-bottom">
+            <!-- Header: Source, Status, and Time -->
+            <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi ${sourceInfo.icon}"></i>
+                    <span class="badge bg-${statusColor}">${status.charAt(0).toUpperCase() + status.slice(1)}</span>
+                </div>
+            </div>
+
+            <!-- Reservation Time -->
+            <div class="mb-2">
+                <strong class="text-${statusColor}">Time:</strong>
+                <span class="text-muted">${startTime.toLocaleTimeString('en-US', timeFormat)} - ${endTime.toLocaleTimeString('en-US', timeFormat)}</span>
+            </div>
+
+            <!-- Reservation Details -->
+            <div class="ms-2">
+                <!-- Guest Name -->
+                <div class="mb-1">
+                    <strong class="text-${statusColor}">Guest:</strong> ${reservation.customerName || (source === 'calendly' ? 'Calendly Booking' : 'Walk-in Customer')}
+                </div>
+                
+                <!-- Number of Guests -->
+                <div class="mb-1">
+                    <strong class="text-${statusColor}">Pax:</strong> ${reservation.pax || table.capacity} guests
+                </div>
+                
+                <!-- Phone Number -->
+                ${reservation.phoneNumber ? `
+                    <div class="mb-1">
+                        <strong class="text-${statusColor}">Phone:</strong> <a href="tel:${reservation.phoneNumber}" class="text-decoration-none">${reservation.phoneNumber}</a>
+                    </div>
+                ` : ''}
+                
+                <!-- Customer Notes -->
+                ${reservation.customerNotes ? `
+                    <div class="mt-2 mb-1">
+                        <strong class="text-${statusColor}">Customer Notes:</strong>
+                        <div class="text-muted small ms-2 p-2 bg-light rounded">${reservation.customerNotes}</div>
+                    </div>
+                ` : ''}
+                
+                <!-- System Notes -->
+                ${reservation.systemNotes ? `
+                    <div class="mt-2 mb-1">
+                        <strong class="text-${statusColor}">System Notes:</strong>
+                        <div class="text-muted small ms-2 p-2 bg-light rounded">${reservation.systemNotes}</div>
+                    </div>
+                ` : ''}
+                
+                <!-- Cancel Button -->
+                <div class="mt-2 pt-2 border-top text-end">
+                    <!-- Edit Tables Button for combined reservations -->
+                    ${reservation.systemNotes && (reservation.systemNotes.includes('combined') || reservation.systemNotes.includes('Assigned')) ? `
+                        <button class="btn btn-sm btn-outline-primary me-2" onclick="openEditTablesModal('${reservation.id}', '${table.id}', '${reservation.systemNotes}')">
+                            <i class="bi bi-pencil-square me-1"></i>Edit Tables
+                        </button>
+                    ` : ''}
+                    <button class="btn btn-sm btn-outline-danger" onclick="cancelReservation('${table.id}', '${reservation.id}')">
+                        <i class="bi bi-trash me-1"></i>Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
 </body>
 </html>

@@ -1,0 +1,38 @@
+.door-element {
+    position: absolute;
+    width: 60px;
+    height: 40px;
+    background-color: #fff;
+    border: 2px solid #fff;
+    border-radius: 0;
+    transition: all 0.3s;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 15;
+}
+
+/* Remove the after pseudo-element that was adding text */
+.door-element::after {
+    content: "";
+}
+
+.door-handle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background-color: #333;
+    border-radius: 50%;
+    left: 10px;
+    top: 16px;
+}
+
+.door-frame {
+    position: absolute;
+    width: 80px;
+    height: 60px;
+    border: 3px solid white;
+    top: -10px;
+    left: -10px;
+} 
