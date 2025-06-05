@@ -255,18 +255,13 @@ class AirtableService {
             }
             
             // Add Pax field - convert to string since it's a Single Line Text field
-            if (additionalData.pax) {
+            if (typeof additionalData.pax !== 'undefined' && additionalData.pax !== null && additionalData.pax !== '') {
                 const paxValue = parseInt(additionalData.pax, 10);
-                console.log('Setting Pax field:', {
-                    original: additionalData.pax,
-                    converted: paxValue,
-                    asString: paxValue.toString()
-                });
-                
                 if (!isNaN(paxValue) && paxValue > 0) {
                     reservationData.fields["Pax"] = paxValue.toString();
                 } else {
-                    console.warn('Invalid Pax value, skipping field:', paxValue);
+                    // If pax is 0 or invalid, still save as string (for edge cases)
+                    reservationData.fields["Pax"] = additionalData.pax.toString();
                 }
             }
             

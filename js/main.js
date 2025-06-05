@@ -270,7 +270,7 @@ window.addEventListener('load', function() {
                         <strong class="text-${statusColor}">Guest:</strong> ${reservation.customerName || (source === 'calendly' ? 'Calendly Booking' : 'Walk-in Customer')}
                     </div>
                     <div class="mb-1">
-                        <strong class="text-${statusColor}">Pax:</strong> ${reservation.pax || table.capacity} guests
+                        <strong class="text-${statusColor}">Pax:</strong> ${(reservation.pax && reservation.pax !== "" ? reservation.pax : table.capacity)} guests
                     </div>
                     ${reservation.phoneNumber ? `
                         <div class="mb-1">
@@ -704,21 +704,43 @@ window.addEventListener('load', function() {
             confirmButton.innerHTML = '<span class="spinner"></span>Creating...';
 
             try {
+                // Create date time from arrival time
+                const today = new Date();
+                const [hours, minutes] = arrivalTime.split(':');
+                const arrivalDateTime = new Date(today);
+                arrivalDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
                 // Create reservation object
                 const reservationData = {
                     tableId: tableId,
                     source: source,
                     status: status,
                     pax: parseInt(numberOfGuests),
-                    arrivalTime: arrivalTime,
+                    arrivalTime: arrivalDateTime.toISOString(),
                     duration: parseInt(duration),
                     customerName: customerName || null,
                     phoneNumber: phoneNumber || null,
                     notes: notes || null
                 };
 
+                // Debug log for pax value
+                console.log('Creating reservation with pax:', reservationData.pax);
+
                 // Create the reservation
-                await createWalkInReservation(reservationData);
+                const airtableReservation = await window.airtableService.createWalkInReservation(
+                    reservationData.tableId,
+                    arrivalDateTime,
+                    reservationData.source,
+                    {
+                        customerName: reservationData.customerName,
+                        phoneNumber: reservationData.phoneNumber,
+                        pax: reservationData.pax,
+                        customerNotes: reservationData.notes,
+                        systemNotes: `Duration: ${reservationData.duration} minutes. Created via manual reservation.`,
+                        status: reservationData.status,
+                        duration: reservationData.duration
+                    }
+                );
 
                 // Hide the Bootstrap modal (this will trigger the hidden.bs.modal event and restore scroll)
                 const modal = bootstrap.Modal.getInstance(document.getElementById('reservationModal'));
@@ -729,10 +751,12 @@ window.addEventListener('load', function() {
                 // Reset the form
                 form.reset();
 
-                // Show success message
+                // Show success message with more details
                 const guestText = reservationData.pax === 1 ? 'guest' : 'guests';
                 const customerText = customerName ? ` for ${customerName}` : '';
-                showSuccessMessage(`Reservation created successfully for table ${tableId}${customerText} (${reservationData.pax} ${guestText})`);
+                const timeText = arrivalDateTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                const successMessage = `Reservation created for Table ${tableId}${customerText} - ${reservationData.pax} ${guestText} at ${timeText}`;
+                showSuccessMessage(successMessage);
 
                 // Refresh the UI
                 initialize();
@@ -768,35 +792,6 @@ window.addEventListener('load', function() {
         console.log('Added reservation confirmation handler (one time only)');
     }
 
-    // Helper function to create walk-in reservation
-    async function createWalkInReservation(reservationData) {
-        if (!window.airtableService) {
-            throw new Error('Airtable service not available');
-        }
-
-        // Create date time from arrival time
-        const today = new Date();
-        const [hours, minutes] = reservationData.arrivalTime.split(':');
-        const arrivalDateTime = new Date(today);
-        arrivalDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
-        // Create reservation in Airtable
-        const airtableReservation = await window.airtableService.createReservation({
-            tableId: reservationData.tableId,
-            customerName: reservationData.customerName,
-            phoneNumber: reservationData.phoneNumber,
-            time: arrivalDateTime.toISOString(),
-            pax: reservationData.pax,
-            customerNotes: reservationData.notes,
-            systemNotes: `Duration: ${reservationData.duration} minutes. Created via manual reservation.`,
-            status: reservationData.status,
-            reservationType: reservationData.source
-        });
-
-        console.log('Created reservation:', airtableReservation);
-        return airtableReservation;
-    }
-
     // Helper function to show success message
     function showSuccessMessage(message) {
         // Create or update success alert
@@ -827,7 +822,6 @@ window.addEventListener('load', function() {
     }
 
     // Make helper functions globally available
-    window.createWalkInReservation = createWalkInReservation;
     window.showSuccessMessage = showSuccessMessage;
 
     // Function to update reservation status

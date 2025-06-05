@@ -635,21 +635,64 @@ function hasReservationConflict(tableId, startTime, endTime) {
 
 // Show success message
 function showSuccessMessage(message) {
-    // Create temporary alert
+    console.log('showSuccessMessage called with:', message); // Debug log
+    
+    // Remove any existing success messages first
+    const existingMessages = document.querySelectorAll('.custom-success-alert');
+    existingMessages.forEach(msg => msg.remove());
+    
+    // Create simple, reliable success alert
     const alertDiv = document.createElement('div');
-    alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
-    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 400px;';
-    alertDiv.innerHTML = `
-        <i class="bi bi-check-circle me-2"></i>${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    alertDiv.className = 'alert alert-success alert-dismissible position-fixed custom-success-alert';
+    alertDiv.style.cssText = `
+        top: 100px !important; 
+        left: 50% !important; 
+        transform: translateX(-50%) !important; 
+        z-index: 99999 !important; 
+        min-width: 400px !important; 
+        max-width: 600px !important;
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3) !important;
+        border: 3px solid #28a745 !important;
+        border-radius: 10px !important;
+        background-color: #d4edda !important;
+        font-size: 16px !important;
+        font-weight: bold !important;
+        padding: 20px !important;
+        display: block !important;
+        opacity: 1 !important;
+        visibility: visible !important;
     `;
     
+    alertDiv.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="bi bi-check-circle-fill me-3" style="font-size: 2rem !important; color: #28a745 !important;"></i>
+            <div class="flex-grow-1">
+                <div style="font-size: 18px !important; color: #155724 !important; font-weight: bold !important;">${message}</div>
+                <div style="font-size: 14px !important; color: #6c757d !important; margin-top: 5px !important;">Reservation saved successfully!</div>
+            </div>
+            <button type="button" class="btn-close" onclick="this.parentElement.parentElement.remove()" style="font-size: 20px !important;"></button>
+        </div>
+    `;
+    
+    console.log('Adding success message to body'); // Debug log
     document.body.appendChild(alertDiv);
+    
+    // Force a reflow to ensure the element is rendered
+    alertDiv.offsetHeight;
+    
+    console.log('Success message element:', alertDiv); // Debug log
+    console.log('Success message in DOM:', document.contains(alertDiv)); // Debug log
     
     // Auto remove after 5 seconds
     setTimeout(() => {
+        console.log('Auto-removing success message'); // Debug log
         if (alertDiv.parentNode) {
-            alertDiv.remove();
+            alertDiv.style.opacity = '0';
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 300);
         }
     }, 5000);
 }
@@ -876,7 +919,7 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                             "Table": assignmentResult.table.id,
                             "Reservation Type": assignmentResult.reservation.source,
                             "Status": assignmentResult.reservation.status,
-                            "Pax": assignmentResult.reservation.pax,
+                            "Pax": assignmentResult.reservation.pax.toString(),
                             "DateandTime": assignmentResult.reservation.startTime,
                             "Duration": assignmentResult.reservation.duration.toString(),
                             "Customer Name": assignmentResult.reservation.customerName || '',
@@ -1390,12 +1433,34 @@ async function saveReservation(reservationData) {
             throw new Error('Airtable service not initialized');
         }
         
+        // Debug log to check the pax value
+        console.log('Saving reservation with pax value:', reservationData.pax, typeof reservationData.pax);
+        
+        // Map status to proper Airtable format
+        let airtableStatus;
+        switch(reservationData.status) {
+            case 'reserved':
+                airtableStatus = 'Reserved';
+                break;
+            case 'arrived':
+                airtableStatus = 'Arrived';
+                break;
+            case 'paid':
+                airtableStatus = 'Paid';
+                break;
+            case 'no-show':
+                airtableStatus = 'No Show';
+                break;
+            default:
+                airtableStatus = 'Reserved'; // Default fallback
+        }
+        
         // Create the reservation in Airtable with exact field names
         const fields = {
             "Table": reservationData.tableId,
             "Reservation Type": "Floor Plan",
-            "Status": reservationData.status.charAt(0).toUpperCase() + reservationData.status.slice(1).toLowerCase(), // Capitalize first letter
-            "Pax": reservationData.pax,
+            "Status": airtableStatus,
+            "Pax": reservationData.pax.toString(), // Ensure it's saved as string
             "DateandTime": reservationData.startTime,
             "Duration": reservationData.duration.toString()
         };
@@ -1441,7 +1506,9 @@ async function handleReservationSubmit(event) {
         const tableId = document.getElementById('selectedTableId').value;
         console.log('Selected table ID:', tableId);
         
-        const pax = parseInt(formData.get('popoverNumberOfGuests'));
+        const pax = parseInt(formData.get('numberOfGuests'));
+        console.log('Form data - pax from dropdown:', formData.get('numberOfGuests'), 'parsed as:', pax);
+        
         const arrivalTime = formData.get('arrivalTime');
         const duration = parseInt(formData.get('duration'));
         const customerName = formData.get('customerName')?.trim() || '';
@@ -1450,6 +1517,11 @@ async function handleReservationSubmit(event) {
         const notes = formData.get('customerNotes')?.trim() || '';
         
         console.log('Selected status:', status); // Debug log
+        
+        // Validate that pax was selected
+        if (!pax || isNaN(pax)) {
+            throw new Error('Please select the number of guests');
+        }
         
         // Create start and end times
         const [hours, minutes] = arrivalTime.split(':');
@@ -1496,8 +1568,19 @@ async function handleReservationSubmit(event) {
         initialize();
         updateFloorPlanTableStatuses();
         
-        // Finally show the success message
-        showSuccessMessage('Reservation created successfully!');
+        // Finally show the success message with more details
+        const guestText = pax === 1 ? 'guest' : 'guests';
+        const customerText = customerName ? ` for ${customerName}` : '';
+        const timeText = startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        const successMessage = `Reservation created for Table ${tableId}${customerText} - ${pax} ${guestText} at ${timeText}`;
+        
+        console.log('About to show success message:', successMessage); // Debug log
+        showSuccessMessage(successMessage);
+        
+        // Backup alert to ensure user gets feedback
+        setTimeout(() => {
+            alert('✅ SUCCESS: ' + successMessage);
+        }, 500);
         
     } catch (error) {
         console.error('Error saving reservation:', error);
@@ -1560,4 +1643,17 @@ const localReservation = {
     systemNotes: airtableRes.systemNotes,
     createdAt: airtableRes.time,
     airtableId: airtableRes.id
-}; 
+};
+
+// Add form submit event listener for the reservation form
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Adding form submit listener'); // Debug log
+    
+    // Use event delegation to handle form submission
+    document.addEventListener('submit', function(event) {
+        if (event.target.id === 'reservationForm') {
+            console.log('Reservation form submitted!'); // Debug log
+            handleReservationSubmit(event);
+        }
+    });
+}); 

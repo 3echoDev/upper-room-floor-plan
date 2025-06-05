@@ -219,6 +219,15 @@ async function fetchAndUpdateReservations() {
                 airtableId: airtableRes.id
             };
             
+            // Debug log for pax value from Airtable
+            console.log('Airtable reservation pax data:', {
+                id: airtableRes.id,
+                tableId: airtableRes.tableId,
+                airtablePax: airtableRes.pax,
+                tableCapacity: table.capacity,
+                finalPax: localReservation.pax
+            });
+            
             table.reservations.push(localReservation);
         });
         
