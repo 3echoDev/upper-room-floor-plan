@@ -214,4 +214,30 @@
     z-index: 9999;
     min-width: 300px;
     max-width: 500px;
-} 
+}
+
+/* QR Code Modal positioning */
+#qrCodeModal .modal-dialog {
+    max-width: 500px;
+}
+
+/* Override Bootstrap's default modal centering */
+#qrCodeModal.modal {
+    padding-right: 0 !important;
+}
+
+#qrCodeModal .modal-dialog.position-relative {
+    margin: 0 auto;
+    transform: none !important;
+}
+
+/* Ensure QR code is properly sized */
+#qrcode-canvas {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+    padding: 10px;
+    background-color: white;
+    border-radius: 4px;
+}

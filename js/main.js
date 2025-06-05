@@ -908,15 +908,15 @@ window.addEventListener('load', function() {
                 e.stopPropagation();
                 const tableId = btn.getAttribute('data-table-id');
                 console.log('QR code button clicked for table:', tableId);
-                showQRCodeModal(tableId);
+                showCustomQRCode(tableId, btn);
             }
         });
         window.qrCodeClickHandlerAdded = true;
         console.log('Added QR code click handler (one time only)');
     }
 
-    // Function to show QR code modal
-    function showQRCodeModal(tableId) {
+    // Custom QR code display function that appears at the button location
+    function showCustomQRCode(tableId, buttonElement) {
         // Get table information
         const table = tables.find(t => t.id === tableId);
         if (!table) {
@@ -924,36 +924,180 @@ window.addEventListener('load', function() {
             return;
         }
         
-        // Update modal title and table info
-        document.getElementById('qrCodeModalLabel').textContent = `QR Code for Table ${tableId}`;
-        document.getElementById('qrTableInfo').innerHTML = `
-            <div class="alert alert-info">
-                <strong>Table ${tableId}</strong><br>
-                <small>${table.type || 'Regular table'} - ${table.capacity} pax capacity</small>
+        // Remove any existing QR popup
+        const existingPopup = document.getElementById('custom-qr-popup');
+        if (existingPopup) {
+            existingPopup.remove();
+        }
+        
+        // Create popup container
+        const popup = document.createElement('div');
+        popup.id = 'custom-qr-popup';
+        popup.className = 'custom-qr-popup';
+        
+        // Get button position
+        const buttonRect = buttonElement.getBoundingClientRect();
+        const scrollY = window.scrollY;
+        const scrollX = window.scrollX;
+        
+        // Create popup content
+        popup.innerHTML = `
+            <div class="qr-popup-header">
+                <h5>QR Code for Table ${tableId}</h5>
+                <button type="button" class="btn-close" aria-label="Close"></button>
+            </div>
+            <div class="qr-popup-body">
+                <div class="alert alert-info mb-3">
+                    <strong>Table ${tableId}</strong><br>
+                    <small>${table.type || 'Regular table'} - ${table.capacity} pax capacity</small>
+                </div>
+                <canvas id="custom-qrcode-canvas" width="200" height="200" class="mx-auto d-block border p-2"></canvas>
+                <div class="mt-3 text-center">
+                    <small class="text-muted" id="custom-qr-info"></small>
+                </div>
+            </div>
+            <div class="qr-popup-footer">
+                <a id="custom-download-link" class="btn btn-primary btn-sm me-2" style="display: none;">
+                    <i class="bi bi-download me-1"></i>Download QR Code
+                </a>
+                <button type="button" class="btn btn-secondary btn-sm close-btn">Close</button>
             </div>
         `;
         
-        // Generate QR code
-        const result = generateQRCode("TeleMenuTestBot", tableId);
+        // Add to document
+        document.body.appendChild(popup);
         
-        // Format current time
-        const now = new Date();
+        // Position popup
+        const popupWidth = 300; // Fixed width for popup
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        
+        // Calculate position (try to center on button)
+        let leftPos = buttonRect.left + scrollX + (buttonRect.width / 2) - (popupWidth / 2);
+        let topPos = buttonRect.bottom + scrollY + 10; // 10px below button
+        
+        // Make sure it doesn't go off screen horizontally
+        if (leftPos < 10) leftPos = 10;
+        if (leftPos + popupWidth > windowWidth - 10) leftPos = windowWidth - popupWidth - 10;
+        
+        // If it would go off screen vertically, position it above the button instead
+        if (topPos + 400 > window.scrollY + windowHeight) { // 400px is approximate height
+            topPos = buttonRect.top + scrollY - 410; // Position above button
+            if (topPos < window.scrollY + 10) {
+                // If there's not enough space above either, just position it at current scroll position
+                topPos = window.scrollY + 10;
+            }
+        }
+        
+        // Apply position
+        popup.style.left = `${leftPos}px`;
+        popup.style.top = `${topPos}px`;
+        
+        // Generate QR code - using the canvas in our custom popup
+        const BOT_USERNAME = "TeleMenuTestBot";
+        const TABLE_NUMBER = tableId;
+
+        // Create SG-time version of timestamp
+        const sgOffset = 8 * 60 * 60 * 1000;
+        const now = new Date(Date.now() + sgOffset); // Add 8 hours to UTC
+        const pad = (n) => String(n).padStart(2, '0');
+
+        const year = now.getUTCFullYear();
+        const month = pad(now.getUTCMonth() + 1);
+        const day = pad(now.getUTCDate());
+        const hour = pad(now.getUTCHours());
+        const minute = pad(now.getUTCMinutes());
+        const second = pad(now.getUTCSeconds());
+
+        const timestamp_str = `${year}-${month}-${day}_${hour}-${minute}-${second}`;
+        const payload = `table${TABLE_NUMBER}_${timestamp_str}`;
+        const deep_link_url = `https://t.me/${BOT_USERNAME}?start=${payload}`;
+        const filename = `qr_table${TABLE_NUMBER}_${timestamp_str}.png`;
+
+        // Generate QR code on our custom canvas
+        QRCode.toCanvas(document.getElementById('custom-qrcode-canvas'), deep_link_url, function(error) {
+            if (error) console.error(error);
+            console.log(`✅ QR code displayed on canvas`);
+            console.log(`🔗 Deep link: ${deep_link_url}`);
+        });
+
+        // Set up download link
+        const downloadLink = document.getElementById('custom-download-link');
+        if (downloadLink) {
+            QRCode.toDataURL(deep_link_url, function(err, url) {
+                downloadLink.href = url;
+                downloadLink.download = filename;
+                downloadLink.style.display = 'block';
+            });
+        }
+        
+        // Format current time for display
         const formattedTime = now.toLocaleTimeString('en-US', { 
             hour: '2-digit', 
             minute: '2-digit',
             hour12: true 
         });
         
-        // Display table and time instead of deep link
-        document.getElementById('qrDeepLink').textContent = `Table: ${tableId}, Time: ${formattedTime}`;
+        // Display table and time
+        document.getElementById('custom-qr-info').textContent = `Table: ${tableId}, Time: ${formattedTime}`;
         
-        // Show the modal
-        const modal = new bootstrap.Modal(document.getElementById('qrCodeModal'));
-        modal.show();
+        // Add event listeners for close buttons
+        popup.querySelector('.btn-close').addEventListener('click', () => popup.remove());
+        popup.querySelector('.close-btn').addEventListener('click', () => popup.remove());
+        
+        // Close when clicking outside
+        setTimeout(() => {
+            document.addEventListener('click', function closePopup(e) {
+                if (!popup.contains(e.target) && !buttonElement.contains(e.target)) {
+                    popup.remove();
+                    document.removeEventListener('click', closePopup);
+                }
+            });
+        }, 100);
+        
+        // Add CSS if not already added
+        if (!document.getElementById('custom-qr-popup-styles')) {
+            const style = document.createElement('style');
+            style.id = 'custom-qr-popup-styles';
+            style.textContent = `
+                .custom-qr-popup {
+                    position: absolute;
+                    z-index: 9999;
+                    background: white;
+                    border-radius: 8px;
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+                    width: 300px;
+                    max-width: 95vw;
+                    overflow: hidden;
+                }
+                .qr-popup-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 10px 15px;
+                    border-bottom: 1px solid #dee2e6;
+                    background-color: #f8f9fa;
+                }
+                .qr-popup-header h5 {
+                    margin: 0;
+                    font-size: 1rem;
+                }
+                .qr-popup-body {
+                    padding: 15px;
+                }
+                .qr-popup-footer {
+                    padding: 10px 15px;
+                    border-top: 1px solid #dee2e6;
+                    text-align: right;
+                    background-color: #f8f9fa;
+                }
+            `;
+            document.head.appendChild(style);
+        }
     }
 
     // Make function globally available
-    window.showQRCodeModal = showQRCodeModal;
+    window.showCustomQRCode = showCustomQRCode;
 
     // Make functions globally available
     window.openMakeReservationModal = openMakeReservationModal;
