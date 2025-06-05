@@ -1656,4 +1656,53 @@ document.addEventListener('DOMContentLoaded', function() {
             handleReservationSubmit(event);
         }
     });
-}); 
+});  // Add QR code button click handler
+if (!window.qrCodeClickHandlerAdded) {
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.qr-code-btn');
+        if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const tableId = btn.getAttribute('data-table-id');
+            console.log('QR code button clicked for table:', tableId);
+            showQRCodeModal(tableId);
+        }
+    });
+    window.qrCodeClickHandlerAdded = true;
+    console.log('Added QR code click handler (one time only)');
+}
+
+// Function to show QR code modal
+function showQRCodeModal(tableId) {
+    // Get table information
+    const table = tables.find(t => t.id === tableId);
+    if (!table) {
+        console.error('Table not found:', tableId);
+        return;
+    }
+    
+    // Extract table number from tableId (e.g., "A1" -> "1")
+    const tableNumber = tableId.replace(/[A-Za-z]/g, '');
+    
+    // Update modal title and table info
+    document.getElementById('qrCodeModalLabel').textContent = `QR Code for Table ${tableId}`;
+    document.getElementById('qrTableInfo').innerHTML = `
+        <div class="alert alert-info">
+            <strong>Table ${tableId}</strong><br>
+            <small>${table.type || 'Regular table'} - ${table.capacity} pax capacity</small>
+        </div>
+    `;
+    
+    // Generate QR code
+    const result = generateQRCode("TeleMenuTestBot", tableId);
+    
+    // Display deep link
+    document.getElementById('qrDeepLink').textContent = `Deep link: ${result.deep_link_url}`;
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('qrCodeModal'));
+    modal.show();
+}
+
+// Make function globally available
+window.showQRCodeModal = showQRCodeModal;
