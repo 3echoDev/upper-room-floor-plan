@@ -1031,11 +1031,12 @@ window.addEventListener('load', function() {
             });
         }
         
-        // Format current time for display
-        const formattedTime = now.toLocaleTimeString('en-US', { 
+        // Format current time for display - using Singapore time zone
+        const formattedTime = new Date().toLocaleTimeString('en-US', { 
             hour: '2-digit', 
             minute: '2-digit',
-            hour12: true 
+            hour12: true,
+            timeZone: 'Asia/Singapore'
         });
         
         // Display table and time
