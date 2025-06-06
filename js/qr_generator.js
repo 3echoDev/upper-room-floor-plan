@@ -1,4 +1,4 @@
-function generateQRCode(botUsername = "TeleMenuTestBot", tableNumber = 8) {
+function generateQRCode(botUsername = "Angel_TUR_Waitress_Bot", tableNumber = 8) {
   const BOT_USERNAME = botUsername;
   const TABLE_NUMBER = tableNumber;
 
