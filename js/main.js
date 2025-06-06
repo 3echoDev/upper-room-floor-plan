@@ -994,7 +994,7 @@ window.addEventListener('load', function() {
         popup.style.top = `${topPos}px`;
         
         // Generate QR code - using the canvas in our custom popup
-        const BOT_USERNAME = "TeleMenuTestBot";
+        const BOT_USERNAME = "Angel_TUR_Waitress_Bot";
         const TABLE_NUMBER = tableId;
 
         // Create SG-time version of timestamp
