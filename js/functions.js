@@ -1859,7 +1859,7 @@ if (!window.qrCodeClickHandlerAdded) {
     console.log('Added QR code click handler (one time only)');
 }
 
-// Function to show QR code modal
+// Alternative approach: Create a completely custom QR code display
 function showQRCodeModal(tableId) {
     // Get table information
     const table = tables.find(t => t.id === tableId);
@@ -1868,12 +1868,104 @@ function showQRCodeModal(tableId) {
         return;
     }
     
-    // Extract table number from tableId (e.g., "A1" -> "1")
-    const tableNumber = tableId.replace(/[A-Za-z]/g, '');
+    // First, find the clicked button to position relative to it
+    const button = document.querySelector(`.qr-code-btn[data-table-id="${tableId}"]`);
+    if (!button) {
+        console.error('Button not found for table:', tableId);
+        return;
+    }
     
-    // Update modal title and table info
-    document.getElementById('qrCodeModalLabel').textContent = `QR Code for Table ${tableId}`;
-    document.getElementById('qrTableInfo').innerHTML = `
+    // Get button position
+    const buttonRect = button.getBoundingClientRect();
+    const scrollY = window.scrollY;
+    
+    // Create or get the custom QR modal
+    let qrModal = document.getElementById('custom-qr-modal');
+    if (!qrModal) {
+        qrModal = document.createElement('div');
+        qrModal.id = 'custom-qr-modal';
+        qrModal.className = 'custom-qr-modal';
+        qrModal.innerHTML = `
+            <div class="custom-qr-content">
+                <div class="custom-qr-header">
+                    <h5 id="custom-qr-title">QR Code</h5>
+                    <button type="button" class="btn-close" onclick="document.getElementById('custom-qr-modal').remove()"></button>
+                </div>
+                <div class="custom-qr-body">
+                    <div id="custom-qr-info" class="mb-3"></div>
+                    <canvas id="custom-qrcode-canvas" class="mx-auto border p-2"></canvas>
+                    <div class="mt-3">
+                        <small class="text-muted" id="custom-qr-link"></small>
+                    </div>
+                </div>
+                <div class="custom-qr-footer">
+                    <button type="button" class="btn btn-secondary" onclick="document.getElementById('custom-qr-modal').remove()">Close</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(qrModal);
+        
+        // Add styles if not already added
+        if (!document.getElementById('custom-qr-styles')) {
+            const style = document.createElement('style');
+            style.id = 'custom-qr-styles';
+            style.textContent = `
+                .custom-qr-modal {
+                    position: absolute;
+                    z-index: 1060;
+                    background: white;
+                    border-radius: 8px;
+                    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+                    width: 350px;
+                    max-width: 90vw;
+                }
+                .custom-qr-content {
+                    padding: 15px;
+                }
+                .custom-qr-header {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 1px solid #dee2e6;
+                    padding-bottom: 10px;
+                    margin-bottom: 15px;
+                }
+                .custom-qr-header h5 {
+                    margin: 0;
+                }
+                .custom-qr-body {
+                    text-align: center;
+                    margin-bottom: 15px;
+                }
+                .custom-qr-footer {
+                    display: flex;
+                    justify-content: flex-end;
+                    border-top: 1px solid #dee2e6;
+                    padding-top: 10px;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+    
+    // Position the modal near the button
+    const modalWidth = 350; // Approximate width of our modal
+    const windowWidth = window.innerWidth;
+    
+    // Calculate left position (center on button if possible)
+    let leftPos = buttonRect.left + (buttonRect.width / 2) - (modalWidth / 2);
+    
+    // Make sure it doesn't go off screen
+    if (leftPos < 20) leftPos = 20;
+    if (leftPos + modalWidth > windowWidth - 20) leftPos = windowWidth - modalWidth - 20;
+    
+    // Position modal
+    qrModal.style.left = `${leftPos}px`;
+    qrModal.style.top = `${buttonRect.bottom + scrollY + 10}px`; // 10px below the button
+    
+    // Update content
+    document.getElementById('custom-qr-title').textContent = `QR Code for Table ${tableId}`;
+    document.getElementById('custom-qr-info').innerHTML = `
         <div class="alert alert-info">
             <strong>Table ${tableId}</strong><br>
             <small>${table.type || 'Regular table'} - ${table.capacity} pax capacity</small>
@@ -1883,12 +1975,27 @@ function showQRCodeModal(tableId) {
     // Generate QR code
     const result = generateQRCode("TeleMenuTestBot", tableId);
     
-    // Display deep link
-    document.getElementById('qrDeepLink').textContent = `Deep link: ${result.deep_link_url}`;
+    // Format current time
+    const now = new Date();
+    const formattedTime = now.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+    });
     
-    // Show the modal
-    const modal = new bootstrap.Modal(document.getElementById('qrCodeModal'));
-    modal.show();
+    // Display table and time
+    document.getElementById('custom-qr-link').textContent = `Table: ${tableId}, Time: ${formattedTime}`;
+    
+    // Add click outside to close
+    setTimeout(() => {
+        const closeOnClickOutside = (e) => {
+            if (!qrModal.contains(e.target) && !button.contains(e.target)) {
+                qrModal.remove();
+                document.removeEventListener('click', closeOnClickOutside);
+            }
+        };
+        document.addEventListener('click', closeOnClickOutside);
+    }, 100);
 }
 
 // Make function globally available
