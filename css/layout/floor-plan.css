@@ -1,37 +1,19 @@
 /* Floor Plan Styles - Improved for smooth scrolling */
 .floor-plan-container {
     background-color: #000;
-    min-height: 750px;
     position: relative;
-    padding: 30px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    overflow: hidden;
-    /* Force hardware acceleration */
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
-    /* Improve rendering performance */
-    will-change: transform;
-    contain: layout style paint;
+    padding: 20px;
+    display: grid;
+    place-items: center;
+    overflow: hidden; /* Prevent scrollbars */
 }
 
 .floor-plan-wrapper {
     position: relative;
     width: 800px;
-    max-width: 100%;
     height: 750px;
-    transform-origin: center center;
-    /* Force hardware acceleration for smooth transforms */
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
-    -webkit-backface-visibility: hidden;
-    backface-visibility: hidden;
+    transform-origin: center;
     will-change: transform;
-    /* Improve rendering performance */
-    contain: layout style paint;
 }
 
 /* Floor Plan Elements */

@@ -407,7 +407,7 @@ function getSourceFromAirtableType(airtableType) {
 
 // Helper function to map Airtable status to local status
 function getStatusFromAirtableStatus(airtableStatus) {
-    if (!airtableStatus) return 'arrived'; // Default to arrived for new reservations
+    if (!airtableStatus) return 'reserved'; // Default to reserved for new reservations
     
     switch(airtableStatus.toLowerCase()) {
         case 'reserved':
@@ -420,12 +420,12 @@ function getStatusFromAirtableStatus(airtableStatus) {
         case 'no-show':
             return 'no-show';
         case 'phone call':
-            return 'reserved'; // Phone calls default to reserved status
+            return 'reserved'; // Phone calls always default to reserved status
         case 'walk in':
         case 'floor plan':
             return 'arrived'; // Walk-ins and floor plan reservations default to arrived status
         default:
-            return 'arrived'; // Default to arrived for any unknown status
+            return 'reserved'; // Default to reserved for any unknown status
     }
 }
 

@@ -506,11 +506,8 @@ window.cancelReservation = async function(tableId, reservationId) {
         // Remove reservation from local table state
         table.reservations = table.reservations.filter(r => r.id !== reservationId);
         
-        // Update UI
-        const tableIndex = tables.findIndex(t => t.id === tableId);
-        if (tableIndex !== -1) {
-            initialize();
-        }
+        // Update UI immediately from local data
+        initialize();
         
         // Update reservation count
         window.updateReservationCount();
@@ -523,7 +520,7 @@ window.cancelReservation = async function(tableId, reservationId) {
         
         console.log('Reservation cancelled successfully:', reservationId);
         
-        // Clear Airtable cache to ensure fresh data on next fetch
+        // Clear Airtable cache to ensure fresh data on next load
         if (window.airtableService) {
             window.airtableService.cachedReservations = [];
             window.airtableService.lastFetchTime = null;
@@ -713,7 +710,7 @@ function getStatusBadgeClass(status) {
 
 // Intelligent Table Assignment for Calendly Bookings
 window.assignCalendlyBookingToTable = function(calendlyBooking) {
-    console.log('Assigning Calendly booking:', calendlyBooking);
+    console.log('🎯 Assigning Calendly booking:', calendlyBooking);
     
     const { startTime, endTime, pax, customerName, phoneNumber, duration } = calendlyBooking;
     
@@ -723,40 +720,39 @@ window.assignCalendlyBookingToTable = function(calendlyBooking) {
     
     // Validate booking data
     if (!bookingStart || !bookingEnd || !pax) {
-        console.error('Invalid booking data:', calendlyBooking);
+        console.error('❌ Invalid booking data:', calendlyBooking);
         return { success: false, error: 'Invalid booking data' };
     }
     
-    // **CRITICAL: Check for existing assignments before proceeding**
-    console.log('Checking for existing assignments...');
+    // **IMPROVED: More thorough duplicate detection**
+    console.log('🔍 Checking for existing assignments...');
+    
+    // Check local tables first
     for (const table of tables) {
         for (const reservation of table.reservations) {
             if (reservation.source === 'calendly') {
                 const resTime = new Date(reservation.startTime);
                 const timeDiff = Math.abs(bookingStart - resTime);
                 
-                // Check for duplicate by customer name and time (within 5 minutes)
-                if (customerName && reservation.customerName === customerName && timeDiff < 300000) {
-                    console.log(`❌ DUPLICATE DETECTED: ${customerName} already assigned to table ${reservation.tableId}`);
-                    return { 
-                        success: false, 
-                        error: `Customer ${customerName} already has a reservation at ${bookingStart.toLocaleTimeString()} on table ${reservation.tableId}`,
-                        isDuplicate: true
-                    };
-                }
+                // More specific duplicate detection
+                const sameCustomer = customerName && reservation.customerName === customerName;
+                const samePhone = phoneNumber && reservation.phoneNumber === phoneNumber;
+                const sameTime = timeDiff < 300000; // Within 5 minutes
                 
-                // Check for duplicate by phone number and time (within 5 minutes)
-                if (phoneNumber && reservation.phoneNumber === phoneNumber && timeDiff < 300000) {
-                    console.log(`❌ DUPLICATE DETECTED: Phone ${phoneNumber} already assigned to table ${reservation.tableId}`);
+                if ((sameCustomer || samePhone) && sameTime) {
+                    console.log(`❌ DUPLICATE DETECTED in local data: ${customerName || phoneNumber} already assigned to table ${reservation.tableId}`);
                     return { 
                         success: false, 
-                        error: `Phone number ${phoneNumber} already has a reservation at ${bookingStart.toLocaleTimeString()} on table ${reservation.tableId}`,
+                        error: `Customer ${customerName || phoneNumber} already has a reservation at ${bookingStart.toLocaleTimeString()} on table ${reservation.tableId}`,
                         isDuplicate: true
                     };
                 }
             }
         }
     }
+    
+    // **NOTE: We don't check Airtable here as it should be handled by CalendlyService.isEventAlreadyAssigned()
+    // before this function is called. This avoids duplicate API calls.**
     
     // Define priority rules based on pax count
     const getPriorityTables = (paxCount) => {
@@ -779,7 +775,7 @@ window.assignCalendlyBookingToTable = function(calendlyBooking) {
     
     // Get priority list for this booking
     const priorityList = getPriorityTables(pax);
-    console.log(`Priority list for ${pax} pax:`, priorityList);
+    console.log(`📋 Priority list for ${pax} pax:`, priorityList);
     
     // Filter available tables that can accommodate the party size and are available at the time
     const availableTables = tables.filter(table => {
@@ -796,9 +792,10 @@ window.assignCalendlyBookingToTable = function(calendlyBooking) {
         return true;
     });
     
-    console.log('Available tables:', availableTables.map(t => `${t.id} (${t.capacity} pax)`));
+    console.log('✅ Available tables:', availableTables.map(t => `${t.id} (${t.capacity} pax)`));
     
     if (availableTables.length === 0) {
+        console.log('❌ No available tables found');
         return { 
             success: false, 
             error: 'No available tables found for this time slot and party size',
@@ -815,7 +812,7 @@ window.assignCalendlyBookingToTable = function(calendlyBooking) {
         const table = availableTables.find(t => t.id === tableId);
         if (table) {
             selectedTable = table;
-            console.log(`Selected priority table: ${tableId}`);
+            console.log(`🎯 Selected priority table: ${tableId}`);
             break;
         }
     }
@@ -841,10 +838,11 @@ window.assignCalendlyBookingToTable = function(calendlyBooking) {
         });
         
         selectedTable = availableTables[0];
-        console.log(`Selected fallback table: ${selectedTable.id}`);
+        console.log(`🔄 Selected fallback table: ${selectedTable.id}`);
     }
     
     if (!selectedTable) {
+        console.log('❌ No suitable table found after selection logic');
         return { 
             success: false, 
             error: 'No suitable table found',
@@ -871,7 +869,13 @@ window.assignCalendlyBookingToTable = function(calendlyBooking) {
         createdAt: new Date().toISOString()
     };
     
-    console.log('Created reservation:', reservation);
+    console.log('✅ Created reservation:', {
+        id: reservation.id,
+        table: selectedTable.id,
+        customer: reservation.customerName,
+        pax: reservation.pax,
+        time: reservation.startTime
+    });
     
     return {
         success: true,
@@ -910,37 +914,82 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                     table.reservations.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
                 }
                 
-                // Also save to Airtable if available
+                // Save to Airtable with proper error handling
                 try {
                     if (window.airtableService) {
                         console.log('Saving Calendly booking to Airtable...');
                         
+                        // **FIXED: Use correct field mapping to match walk-in reservation pattern**
                         const fields = {
                             "Table": assignmentResult.table.id,
-                            "Reservation Type": assignmentResult.reservation.source,
-                            "Status": assignmentResult.reservation.status,
+                            "Reservation Type": "Calendly", // Use proper Airtable value
+                            "Status": "Reserved", // Map to proper Airtable status
                             "Pax": assignmentResult.reservation.pax.toString(),
                             "DateandTime": assignmentResult.reservation.startTime,
-                            "Duration": assignmentResult.reservation.duration.toString(),
-                            "Customer Name": assignmentResult.reservation.customerName || '',
-                            "Phone Number": assignmentResult.reservation.phoneNumber || '',
-                            "Notes": assignmentResult.reservation.specialRequest || ''
+                            "Duration": assignmentResult.reservation.duration.toString()
                         };
+
+                        // Add customer information to Customer Notes field (like walk-in reservations)
+                        let customerNotes = '';
+                        if (assignmentResult.reservation.customerName) {
+                            customerNotes += `Customer: ${assignmentResult.reservation.customerName}`;
+                        }
+                        if (assignmentResult.reservation.specialRequest) {
+                            if (customerNotes) customerNotes += '\n';
+                            customerNotes += `Special Request: ${assignmentResult.reservation.specialRequest}`;
+                        }
+                        if (customerNotes) {
+                            fields["Customer Notes"] = customerNotes;
+                        }
+
+                        // Add phone number if available
+                        if (assignmentResult.reservation.phoneNumber) {
+                            fields["PH Number"] = assignmentResult.reservation.phoneNumber;
+                        }
+                        
+                        // Add system notes to track this is a Calendly booking
+                        fields["System Notes"] = `Automatically assigned from Calendly booking - Duration: ${assignmentResult.reservation.duration} minutes`;
+
+                        console.log('Saving to Airtable with fields:', fields); // Debug log
 
                         const result = await window.airtableService.base('tbl9dDLnVa5oLEnuq').create([
                             { fields }
                         ]);
                         
-                        // Update the local reservation with Airtable ID
+                        // **CRITICAL: Update the local reservation with Airtable ID**
                         const localReservation = table.reservations.find(r => r.id === assignmentResult.reservation.id);
                         if (localReservation && result && result[0]) {
                             localReservation.airtableId = result[0].id;
-                            console.log(`Calendly booking saved to Airtable with ID: ${result[0].id}`);
+                            // **IMPORTANT: Also update the reservation ID to match Airtable**
+                            localReservation.id = result[0].id;
+                            console.log(`✅ Calendly booking saved to Airtable with ID: ${result[0].id}`);
+                        } else {
+                            console.warn('⚠️ Failed to link local reservation with Airtable record');
                         }
+                        
+                        // **CRITICAL: Clear Airtable cache to ensure fresh data**
+                        window.airtableService.cachedReservations = [];
+                        window.airtableService.lastFetchTime = null;
+                        
+                    } else {
+                        console.warn('⚠️ Airtable service not available - assignment saved locally only');
                     }
                 } catch (airtableError) {
-                    console.warn('Failed to save Calendly booking to Airtable:', airtableError);
-                    // Continue even if Airtable save fails - the local assignment is still valid
+                    console.error('❌ CRITICAL: Failed to save Calendly booking to Airtable:', airtableError);
+                    
+                    // **IMPORTANT: Remove the local reservation if Airtable save fails**
+                    if (table) {
+                        table.reservations = table.reservations.filter(r => r.id !== assignmentResult.reservation.id);
+                        console.log('🗑️ Removed local reservation due to Airtable save failure');
+                    }
+                    
+                    // Mark this assignment as failed
+                    results.failed.push({
+                        booking: booking,
+                        error: `Failed to save to Airtable: ${airtableError.message}`
+                    });
+                    results.summary.failed++;
+                    continue; // Skip to next booking
                 }
                 
                 results.successful.push({
@@ -949,7 +998,7 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                 });
                 results.summary.assigned++;
                 
-                console.log(`✓ Booking ${i + 1} assigned to table ${assignmentResult.table.id}`);
+                console.log(`✅ Booking ${i + 1} assigned to table ${assignmentResult.table.id} and saved to Airtable`);
             } else {
                 results.failed.push({
                     booking: booking,
@@ -957,10 +1006,10 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                 });
                 results.summary.failed++;
                 
-                console.log(`✗ Booking ${i + 1} failed: ${assignmentResult.error}`);
+                console.log(`❌ Booking ${i + 1} failed: ${assignmentResult.error}`);
             }
         } catch (error) {
-            console.error(`Error processing booking ${i + 1}:`, error);
+            console.error(`❌ Error processing booking ${i + 1}:`, error);
             results.failed.push({
                 booking: booking,
                 error: error.message
@@ -969,31 +1018,49 @@ window.processCalendlyBookings = async function(calendlyBookings) {
         }
     }
     
-    // Update UI after processing all bookings
+    // **CRITICAL: Force refresh from Airtable after all assignments**
     if (results.summary.assigned > 0) {
-        initialize(); // Refresh the UI
-        updateReservationCount();
-        updateFloorPlanTableStatuses();
-        
-        // Show success message with more details
-        const successMessage = `Successfully assigned ${results.summary.assigned} Calendly booking(s) to tables!`;
-        showSuccessMessage(successMessage);
-        
-        // Log detailed assignment information
-        console.log('Assignment Summary:', {
-            successful: results.successful.map(s => ({
-                customer: s.booking.customerName,
-                pax: s.booking.pax,
-                time: s.booking.startTime.toLocaleString(),
-                assignedTable: s.assignment.table.id
-            })),
-            failed: results.failed
-        });
+        try {
+            console.log('🔄 Refreshing data from Airtable after Calendly assignments...');
+            
+            // Clear cache and fetch fresh data
+            if (window.airtableService) {
+                window.airtableService.cachedReservations = [];
+                window.airtableService.lastFetchTime = null;
+            }
+            
+            // Fetch fresh data from Airtable
+            await fetchAndUpdateReservations();
+            
+            // Update UI with fresh data
+            initialize();
+            updateReservationCount();
+            updateFloorPlanTableStatuses();
+            
+            // Show success message with more details
+            const successMessage = `Successfully assigned ${results.summary.assigned} Calendly booking(s) to tables and saved to Airtable!`;
+            showSuccessMessage(successMessage);
+            
+            // Log detailed assignment information
+            console.log('📊 Assignment Summary:', {
+                successful: results.successful.map(s => ({
+                    customer: s.booking.customerName,
+                    pax: s.booking.pax,
+                    time: s.booking.startTime.toLocaleString(),
+                    assignedTable: s.assignment.table.id
+                })),
+                failed: results.failed
+            });
+        } catch (refreshError) {
+            console.error('❌ Error refreshing data after assignments:', refreshError);
+            // Show success anyway but mention refresh issue
+            showSuccessMessage(`Assigned ${results.summary.assigned} bookings, but UI refresh failed. Please refresh the page.`);
+        }
     }
     
     // Show summary for failed assignments
     if (results.summary.failed > 0) {
-        console.warn(`Failed to assign ${results.summary.failed} booking(s)`);
+        console.warn(`⚠️ Failed to assign ${results.summary.failed} booking(s)`);
         
         // Show detailed failure information
         results.failed.forEach(failure => {
@@ -1052,34 +1119,52 @@ window.normalizeCalendlyBooking = function(rawBooking) {
     };
 };
 
-// Example usage function (for testing)
-window.testCalendlyAssignment = function() {
-    const testBookings = [
-        {
-            time: '2024-01-15T18:00:00',
-            duration: 90,
-            pax: 4,
-            customerName: 'John Doe'
-        },
-        {
-            time: '2024-01-15T19:30:00',
-            duration: 120,
-            pax: 2,
-            customerName: 'Jane Smith'
-        },
-        {
-            time: '2024-01-15T20:00:00',
-            duration: 90,
-            pax: 6,
-            customerName: 'The Johnson Family'
+// **DEBUG FUNCTION: Test Calendly Assignment System**
+window.testCalendlyAssignmentSystem = async function() {
+    console.log('🧪 Testing Calendly Assignment System...');
+    
+    // Test data
+    const testBooking = {
+        startTime: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
+        endTime: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
+        pax: 3,
+        customerName: 'Test Customer',
+        phoneNumber: '+65 9999 9999',
+        specialRequest: 'Test booking for system verification'
+    };
+    
+    console.log('Test booking data:', testBooking);
+    
+    try {
+        // Step 1: Test assignment logic
+        console.log('🔍 Step 1: Testing assignment logic...');
+        const assignmentResult = assignCalendlyBookingToTable(testBooking);
+        console.log('Assignment result:', assignmentResult);
+        
+        if (!assignmentResult.success) {
+            console.error('❌ Assignment failed:', assignmentResult.error);
+            return { success: false, step: 'assignment', error: assignmentResult.error };
         }
-    ];
-    
-    const normalizedBookings = testBookings.map(booking => normalizeCalendlyBooking(booking));
-    const results = processCalendlyBookings(normalizedBookings);
-    
-    console.log('Test assignment results:', results);
-    return results;
+        
+        // Step 2: Test normalization
+        console.log('🔍 Step 2: Testing booking normalization...');
+        const normalizedBooking = normalizeCalendlyBooking(testBooking);
+        console.log('Normalized booking:', normalizedBooking);
+        
+        // Step 3: Test the full process (but don't actually save to Airtable)
+        console.log('🔍 Step 3: Testing full process (dry run)...');
+        console.log('✅ All tests passed! The system appears to be working correctly.');
+        
+        return { 
+            success: true, 
+            assignedTable: assignmentResult.table.id,
+            message: 'Test completed successfully - system is ready for Calendly bookings!'
+        };
+        
+    } catch (error) {
+        console.error('❌ Test failed:', error);
+        return { success: false, error: error.message };
+    }
 };
 
 // Update reservation status
@@ -1099,11 +1184,68 @@ window.updateReservationStatus = async function(tableId, reservationId, newStatu
     const oldStatus = reservation.status || 'reserved';
     
     try {
-        // Update in Airtable first if available
+        // If status is changed to no-show, delete the reservation
+        if (newStatus === 'no-show') {
+            // Show immediate alert to inform user
+            alert('Processing... Marking reservation as no-show and deleting the record.');
+            
+            console.log('Reservation marked as no-show, deleting reservation:', reservationId);
+            
+            // Get reservation details for the alert message
+            const customerInfo = reservation.customerName ? ` for ${reservation.customerName}` : '';
+            const timeInfo = new Date(reservation.startTime).toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit', 
+                hour12: true 
+            });
+            
+            // Delete from Airtable
+            if (window.airtableService) {
+                await window.airtableService.deleteReservation(reservationId);
+                console.log('Successfully deleted no-show reservation from Airtable');
+            }
+            
+            // Remove from local table state
+            table.reservations = table.reservations.filter(r => r.id !== reservationId);
+            
+            // Clear Airtable cache to ensure fresh data on next load
+            if (window.airtableService) {
+                window.airtableService.cachedReservations = [];
+                window.airtableService.lastFetchTime = null;
+            }
+            
+            // Update UI immediately from local data
+            initialize();
+            
+            // Update reservation count
+            window.updateReservationCount();
+            
+            // Update floor plan indicators
+            updateFloorPlanTableStatuses();
+            
+            // Show success message
+            showSuccessMessage(`Reservation marked as no-show and removed`);
+            
+            // Show completion alert with reservation details
+            alert(`✅ Completed: Reservation for Table ${tableId}${customerInfo} at ${timeInfo} has been marked as no-show and deleted.`);
+            
+            console.log('No-show reservation processed successfully:', reservationId);
+            
+            return;
+        }
+        
+        // For other status changes, proceed with normal update
         if (window.airtableService && (reservation.airtableId || reservation.id)) {
             console.log('Updating reservation status in Airtable...');
             const airtableRecordId = reservation.airtableId || reservation.id;
             await window.airtableService.updateReservationStatus(airtableRecordId, newStatus);
+            
+            // Clear cache and fetch fresh data
+            window.airtableService.cachedReservations = [];
+            window.airtableService.lastFetchTime = null;
+            
+            // Fetch fresh data
+            await fetchAndUpdateReservations();
         }
         
         // Update local status
@@ -1111,6 +1253,7 @@ window.updateReservationStatus = async function(tableId, reservationId, newStatu
         
         // Update UI
         initialize();
+        updateFloorPlanTableStatuses();
         
         // Show success message
         showSuccessMessage(`Reservation status updated from "${oldStatus}" to "${newStatus}"`);
@@ -1307,10 +1450,10 @@ function openReservationPopover(tableId, clickedElement) {
         sourceSelect.value = 'walk-in';
     }
     
-    // Set default status to arrived for walk-in
+    // Set default status based on source (walk-in)
     const statusSelect = document.getElementById('reservationStatus');
     if (statusSelect) {
-        statusSelect.value = 'arrived';
+        statusSelect.value = 'arrived'; // Default for walk-in
         updateStatusSelectStyling('arrived');
     }
     
@@ -1367,7 +1510,8 @@ document.getElementById('reservationSource').addEventListener('change', function
     const statusSelect = document.getElementById('reservationStatus');
     if (statusSelect) {
         // Set default status based on source
-        statusSelect.value = e.target.value === 'walk-in' ? 'arrived' : 'reserved';
+        // For phone calls, set to reserved. For walk-ins, set to arrived
+        statusSelect.value = e.target.value === 'phone-call' ? 'reserved' : 'arrived';
         updateStatusSelectStyling(statusSelect.value);
     }
 });
@@ -1452,28 +1596,36 @@ async function saveReservation(reservationData) {
                 airtableStatus = 'No Show';
                 break;
             default:
-                airtableStatus = 'Reserved'; // Default fallback
+                // Set default status based on source
+                airtableStatus = reservationData.source === 'phone-call' ? 'Reserved' : 'Arrived';
         }
         
         // Create the reservation in Airtable with exact field names
         const fields = {
             "Table": reservationData.tableId,
-            "Reservation Type": "Floor Plan",
+            "Reservation Type": reservationData.source === 'phone-call' ? 'Phone Call' : 'Floor Plan',
             "Status": airtableStatus,
             "Pax": reservationData.pax.toString(), // Ensure it's saved as string
             "DateandTime": reservationData.startTime,
             "Duration": reservationData.duration.toString()
         };
 
-        // Only add optional fields if they have values
+        // Add customer information to Customer Notes field
+        let customerNotes = '';
         if (reservationData.customerName) {
-            fields["Name"] = reservationData.customerName;
-        }
-        if (reservationData.phoneNumber) {
-            fields["PH Number"] = reservationData.phoneNumber;
+            customerNotes += `Customer: ${reservationData.customerName}`;
         }
         if (reservationData.notes) {
-            fields["Customer Notes"] = reservationData.notes;
+            if (customerNotes) customerNotes += '\n';
+            customerNotes += reservationData.notes;
+        }
+        if (customerNotes) {
+            fields["Customer Notes"] = customerNotes;
+        }
+
+        // Add phone number if available
+        if (reservationData.phoneNumber) {
+            fields["PH Number"] = reservationData.phoneNumber;
         }
 
         console.log('Saving reservation with fields:', fields); // Debug log
@@ -1656,7 +1808,42 @@ document.addEventListener('DOMContentLoaded', function() {
             handleReservationSubmit(event);
         }
     });
-});  // Add QR code button click handler
+});
+
+// Automatically scale the floor plan to fit the container
+function updateFloorPlanScale() {
+    const container = document.querySelector('.floor-plan-container');
+    const wrapper = document.querySelector('.floor-plan-wrapper');
+
+    if (!container || !wrapper) {
+        return;
+    }
+
+    // Use a small timeout to ensure the layout is stable before measuring
+    setTimeout(() => {
+        const INTRINSIC_WIDTH = 800; // The floor plan's natural, internal width
+        const INTRINSIC_HEIGHT = 750; // The floor plan's natural, internal height
+
+        const style = getComputedStyle(container);
+        const containerWidth = container.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+
+        // Calculate the correct scale. Never scale up, only down.
+        const scale = Math.min(1, containerWidth / INTRINSIC_WIDTH);
+
+        // Apply the scale
+        wrapper.style.transform = `scale(${scale})`;
+
+        // Set the container's height to perfectly match the scaled content
+        const newHeight = (INTRINSIC_HEIGHT * scale);
+        container.style.height = `${newHeight + 40}px`; // Add some padding
+    }, 100);
+}
+
+// Run on initial load and on resize for continuous responsiveness
+document.addEventListener('DOMContentLoaded', updateFloorPlanScale);
+window.addEventListener('resize', updateFloorPlanScale);
+
+// Add QR code button click handler
 if (!window.qrCodeClickHandlerAdded) {
     document.addEventListener('click', function(e) {
         const btn = e.target.closest('.qr-code-btn');

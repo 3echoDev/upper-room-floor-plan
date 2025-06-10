@@ -45,8 +45,9 @@ class AirtableService {
         try {
             console.log('Updating reservation status:', { recordId, status });
             
-            if (status === 'available') {
-                // If status is available, delete the record
+            // If status is available or no-show, delete the record
+            if (status === 'available' || status === 'no-show') {
+                console.log(`Status is ${status}, deleting reservation...`);
                 return await this.deleteReservation(recordId);
             }
             
@@ -61,9 +62,6 @@ class AirtableService {
                     break;
                 case 'paid':
                     airtableStatus = 'Paid';
-                    break;
-                case 'no-show':
-                    airtableStatus = 'No Show';
                     break;
                 case 'phone-call':
                     airtableStatus = 'Phone call';
@@ -153,7 +151,7 @@ class AirtableService {
                                 time: record.get('DateandTime'),
                                 duration: record.get('Duration'), // Get duration directly from Duration field
                                 customerName: record.get('Name'),
-                                phoneNumber: record.get('Phone Number'),
+                                phoneNumber: record.get('PH Number'),
                                 customerNotes: record.get('Customer Notes'),
                                 notes: record.get('Notes'),
                                 systemNotes: record.get('System Notes')
@@ -202,8 +200,12 @@ class AirtableService {
                         airtableStatus = 'No Show';
                         break;
                     default:
-                        airtableStatus = 'Reserved';
+                        // For phone calls, default to Reserved
+                        airtableStatus = reservationType === 'phone-call' ? 'Reserved' : 'Arrived';
                 }
+            } else {
+                // If no status provided, set based on reservation type
+                airtableStatus = reservationType === 'phone-call' ? 'Reserved' : 'Arrived';
             }
             
             // Map reservation type - use reservationType parameter for the Airtable field

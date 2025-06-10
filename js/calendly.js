@@ -564,7 +564,7 @@ async function updateCalendlyBookings() {
                         </div>
                     `;
                 } else {
-                    // Add to assignment queue only if not already assigned
+                    // **FIXED: This booking needs assignment - add to queue**
                     const bookingForAssignment = {
                         eventId: eventId,
                         startTime: new Date(event.start_time),
@@ -691,6 +691,12 @@ async function updateCalendlyBookings() {
                     initialize(); // Refresh the UI
                     updateReservationCount();
                     updateFloorPlanTableStatuses();
+                    
+                    // **IMPORTANT: Refresh the Calendly bookings display to show updated assignments**
+                    console.log('🔄 Refreshing Calendly bookings display to show new assignments...');
+                    setTimeout(() => {
+                        updateCalendlyBookings(); // Re-run this function to show updated status
+                    }, 2000); // Small delay to ensure Airtable is updated
                     
                     // Show success message with more details
                     const successMessage = `Successfully assigned ${assignmentResults.summary.assigned} Calendly booking(s) to tables!`;
