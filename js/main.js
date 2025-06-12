@@ -980,6 +980,9 @@ window.addEventListener('load', function() {
                 <a id="custom-download-link" class="btn btn-primary btn-sm me-2" style="display: none;">
                     <i class="bi bi-download me-1"></i>Download QR Code
                 </a>
+                <button type="button" class="btn btn-success btn-sm me-2" id="print-qr-btn">
+                    <i class="bi bi-printer me-1"></i>Print QR Code
+                </button>
                 <button type="button" class="btn btn-secondary btn-sm close-btn">Close</button>
             </div>
         `;
@@ -1048,6 +1051,46 @@ window.addEventListener('load', function() {
                 downloadLink.href = url;
                 downloadLink.download = filename;
                 downloadLink.style.display = 'block';
+
+                // Set up print button
+                const printBtn = document.getElementById('print-qr-btn');
+                if (printBtn) {
+                    printBtn.addEventListener('click', async () => {
+                        try {
+                            printBtn.disabled = true;
+                            printBtn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Printing...';
+                            
+                            await window.starPrinter.printQRCode(tableId, url);
+                            
+                            // For iOS, we don't need to show success message immediately
+                            // as the app will handle the printing
+                            if (!window.starPrinter.isIOS) {
+                                printBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Printed!';
+                                setTimeout(() => {
+                                    printBtn.innerHTML = '<i class="bi bi-printer me-1"></i>Print QR Code';
+                                    printBtn.disabled = false;
+                                }, 2000);
+                            }
+                        } catch (error) {
+                            console.error('Failed to print:', error);
+                            printBtn.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Print Failed';
+                            printBtn.disabled = false;
+                            
+                            // Show error message
+                            const errorAlert = document.createElement('div');
+                            errorAlert.className = 'alert alert-danger mt-2';
+                            errorAlert.innerHTML = `
+                                <i class="bi bi-exclamation-triangle me-1"></i>
+                                ${error.message || 'Failed to print QR code. Please check if Star PassPRNT app is installed.'}
+                            `;
+                            popup.querySelector('.qr-popup-body').appendChild(errorAlert);
+                            
+                            setTimeout(() => {
+                                errorAlert.remove();
+                            }, 5000);
+                        }
+                    });
+                }
             });
         }
         
