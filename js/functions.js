@@ -583,14 +583,13 @@ function hasReservationConflict(tableId, startTime, endTime) {
             }
             
             // NEW LOGIC: Check if the new reservation starts before the existing reservation ends
-            // This ensures we can only book after the previous reservation ends
-            if (startTime < resEnd) {
-                console.log('Conflict: Cannot book before previous reservation ends:', {
-                    existingEnd: resEnd.toLocaleTimeString(),
-                    attemptedStart: startTime.toLocaleTimeString()
-                });
-                return true;
-            }
+            // if (startTime < resEnd) {
+            //     console.log('Conflict: Cannot book before previous reservation ends:', {
+            //         existingEnd: resEnd.toLocaleTimeString(),
+            //         attemptedStart: startTime.toLocaleTimeString()
+            //     });
+            //     return true;
+            // }
             
             // Keep the original overlap checks for completeness
             const startsInExisting = startTime >= resStart && startTime < resEnd;
