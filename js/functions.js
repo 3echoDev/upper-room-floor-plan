@@ -1452,8 +1452,8 @@ function openReservationPopover(tableId, clickedElement) {
     // Set default status based on source (walk-in)
     const statusSelect = document.getElementById('reservationStatus');
     if (statusSelect) {
-        statusSelect.value = 'arrived'; // Default for walk-in
-        updateStatusSelectStyling('arrived');
+        statusSelect.value = 'reserved'; // Default for all new reservations
+        updateStatusSelectStyling('reserved');
     }
     
     // Position and show the popover
@@ -1508,10 +1508,9 @@ function initializeGuestsDropdown(maxCapacity) {
 document.getElementById('reservationSource').addEventListener('change', function(e) {
     const statusSelect = document.getElementById('reservationStatus');
     if (statusSelect) {
-        // Set default status based on source
-        // For phone calls, set to reserved. For walk-ins, set to arrived
-        statusSelect.value = e.target.value === 'phone-call' ? 'reserved' : 'arrived';
-        updateStatusSelectStyling(statusSelect.value);
+        // Always default to reserved when source changes
+        statusSelect.value = 'reserved';
+        updateStatusSelectStyling('reserved');
     }
 });
 
