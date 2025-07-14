@@ -89,7 +89,15 @@ window.addEventListener('load', function() {
         { id: "D2", name: "D2", capacity: 6, type: "table" },
         { id: "D3", name: "D3", capacity: 6, type: "table" },
         { id: "E1", name: "E1", capacity: 6, type: "outdoor seating" },
-        { id: "E2", name: "E2", capacity: 6, type: "outdoor seating" }
+        { id: "E2", name: "E2", capacity: 6, type: "outdoor seating" },
+        { id: "L1", name: "L1", capacity: 4, type: "loft table" },
+        { id: "L2", name: "L2", capacity: 4, type: "loft table" },
+        { id: "L3", name: "L3", capacity: 4, type: "loft table" },
+        { id: "L4", name: "L4", capacity: 4, type: "loft table" },
+        { id: "L5", name: "L5", capacity: 4, type: "loft table" },
+        { id: "L6", name: "L6", capacity: 4, type: "loft table" },
+        { id: "L7", name: "L7", capacity: 4, type: "loft table" },
+        { id: "L8", name: "L8", capacity: 4, type: "loft table" }
     ].map(table => ({
         ...table,
         reservations: []  // Simple array to store reservations
@@ -424,7 +432,7 @@ window.addEventListener('load', function() {
             });
             
             // Define section order explicitly (A should be first)
-            const sectionOrder = ['A', 'B', 'C', 'D', 'E'];
+            const sectionOrder = ['A', 'B', 'C', 'D', 'E', 'L'];
             const sortedSections = sectionOrder.filter(section => groupedTables[section]);
             
             // Section descriptions
@@ -433,7 +441,8 @@ window.addEventListener('load', function() {
                 'B': 'Main Dining Area',
                 'C': 'Central Tables',
                 'D': 'Window Side Tables',
-                'E': 'Outdoor Patio'
+                'E': 'Outdoor Patio',
+                'L': 'Loft Section'
             };
             
             // Render tables by section

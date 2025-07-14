@@ -758,8 +758,8 @@ window.assignCalendlyBookingToTable = function(calendlyBooking) {
         const rules = {
             1: ['C5'], // 1 pax: C5 only
             2: ['C5'], // 2 pax: C5 only
-            3: ['C3', 'B2', 'B1'], // 3 pax: C3 first, then B2, then B1
-            4: ['C3', 'B2', 'B1'], // 4 pax: C3 first, then B2, then B1
+            3: ['C3', 'L1', 'L2', 'B2', 'B1'], // 3 pax: C3 first, then loft tables, then B tables
+            4: ['C3', 'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'B2', 'B1'], // 4 pax: C3 first, then all loft tables, then B tables
             5: ['D2'], // 5 pax: D2 only
             6: ['D2'], // 6 pax: D2 only
         };
@@ -1881,7 +1881,7 @@ function updateFloorPlanScale() {
     // Use a small timeout to ensure the layout is stable before measuring
     setTimeout(() => {
         const INTRINSIC_WIDTH = 800; // The floor plan's natural, internal width
-        const INTRINSIC_HEIGHT = 750; // The floor plan's natural, internal height
+        const INTRINSIC_HEIGHT = 820; // The floor plan's natural, internal height
 
         const style = getComputedStyle(container);
         const containerWidth = container.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
