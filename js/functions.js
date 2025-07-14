@@ -1880,8 +1880,8 @@ function updateFloorPlanScale() {
 
     // Use a small timeout to ensure the layout is stable before measuring
     setTimeout(() => {
-        const INTRINSIC_WIDTH = 800; // The floor plan's natural, internal width
-        const INTRINSIC_HEIGHT = 820; // The floor plan's natural, internal height
+        const INTRINSIC_WIDTH = 1050; // The floor plan's natural, internal width
+        const INTRINSIC_HEIGHT = 780; // The floor plan's natural, internal height
 
         const style = getComputedStyle(container);
         const containerWidth = container.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
