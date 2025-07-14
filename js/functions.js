@@ -1388,12 +1388,94 @@ function closeReservationPopover() {
         document.removeEventListener('click', handleClickOutside);
         
         // Reset form
-        const form = document.getElementById('reservationForm');
+        const form = document.getElementById('popoverReservationForm');
         if (form) {
             form.reset();
         }
     }
 }
+
+// Function to handle popover form submission
+async function handlePopoverSubmit(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const button = event.target;
+    const originalText = button.innerHTML;
+    
+    try {
+        // Disable button to prevent double submission
+        button.disabled = true;
+        button.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+        
+        // Get form data from popover form
+        const formData = {
+            tableId: document.getElementById('popoverSelectedTableId').value,
+            source: document.getElementById('popoverReservationSource').value,
+            status: document.getElementById('popoverReservationStatus').value,
+            numberOfGuests: document.getElementById('popoverNumberOfGuests').value,
+            arrivalTime: document.getElementById('popoverArrivalTime').value,
+            duration: document.getElementById('popoverDuration').value,
+            customerName: document.getElementById('popoverCustomerName').value,
+            phoneNumber: document.getElementById('popoverPhoneNumber').value,
+            customerNotes: document.getElementById('popoverCustomerNotes').value
+        };
+        
+        console.log('🔥 Popover form data:', formData);
+        
+        // Validate required fields
+        if (!formData.tableId || !formData.source || !formData.status || 
+            !formData.numberOfGuests || !formData.arrivalTime || !formData.duration) {
+            throw new Error('Please fill in all required fields');
+        }
+        
+        // Use the Airtable service to create reservation
+        const today = new Date();
+        const [hours, minutes] = formData.arrivalTime.split(':');
+        const arrivalDateTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes);
+
+        const airtableReservation = await window.airtableService.createWalkInReservation(
+            formData.tableId,
+            arrivalDateTime,
+            formData.source,
+            {
+                customerName: formData.customerName,
+                phoneNumber: formData.phoneNumber,
+                pax: parseInt(formData.numberOfGuests),
+                customerNotes: formData.customerNotes,
+                systemNotes: `Duration: ${formData.duration} minutes. Created via popover.`,
+                status: formData.status,
+                duration: parseInt(formData.duration)
+            }
+        );
+
+        console.log('✅ Popover reservation saved successfully:', airtableReservation);
+
+        // Close the popover
+        closeReservationPopover();
+
+        // Show success message
+        showSuccessMessage('Reservation created successfully!');
+
+        // Update the UI
+        setTimeout(async () => {
+            await fetchAndUpdateReservations();
+            updateFloorPlanTableStatuses();
+            updateReservationCount();
+        }, 500);
+
+    } catch (error) {
+        console.error('❌ Error saving popover reservation:', error);
+        alert('Failed to save reservation: ' + error.message);
+    } finally {
+        // Re-enable the button
+        button.disabled = false;
+        button.innerHTML = originalText;
+    }
+}
+
+// Make function globally available
+window.handlePopoverSubmit = handlePopoverSubmit;
 
 // Function to open the reservation popover
 function openReservationPopover(tableId, clickedElement) {
@@ -1406,7 +1488,7 @@ function openReservationPopover(tableId, clickedElement) {
     console.log('Opening reservation popover for table:', table); // Debug log
     
     // Set table information
-    document.getElementById('selectedTableId').value = tableId;
+    document.getElementById('popoverSelectedTableId').value = tableId;
     
     // Update table info display
     const tableInfo = document.querySelector('.table-info');
@@ -1423,7 +1505,7 @@ function openReservationPopover(tableId, clickedElement) {
     }
     
     // Reset form completely
-    const form = document.getElementById('reservationForm');
+    const form = document.getElementById('popoverReservationForm');
     if (form) {
         form.reset();
     }
@@ -1435,7 +1517,7 @@ function openReservationPopover(tableId, clickedElement) {
     const timeString = `${hours}:${minutes}`;
     
     // Update arrival time
-    const arrivalTimeInput = document.getElementById('arrivalTime');
+    const arrivalTimeInput = document.getElementById('popoverArrivalTime');
     if (arrivalTimeInput) {
         arrivalTimeInput.value = timeString;
     }
@@ -1444,13 +1526,13 @@ function openReservationPopover(tableId, clickedElement) {
     initializeGuestsDropdown(table.capacity);
     
     // Set source to walk-in by default
-    const sourceSelect = document.getElementById('reservationSource');
+    const sourceSelect = document.getElementById('popoverReservationSource');
     if (sourceSelect) {
         sourceSelect.value = 'walk-in';
     }
     
     // Set default status based on source (walk-in)
-    const statusSelect = document.getElementById('reservationStatus');
+    const statusSelect = document.getElementById('popoverReservationStatus');
     if (statusSelect) {
         statusSelect.value = 'reserved'; // Default for all new reservations
         updateStatusSelectStyling('reserved');
@@ -1568,178 +1650,179 @@ window.handleTableClick = function(tableId) {
     }
 };
 
-// Function to save reservation to Airtable
-async function saveReservation(reservationData) {
-    try {
-        if (!window.airtableService) {
-            throw new Error('Airtable service not initialized');
-        }
-        
-        // Debug log to check the pax value
-        console.log('Saving reservation with pax value:', reservationData.pax, typeof reservationData.pax);
-        
-        // Map status to proper Airtable format
-        let airtableStatus;
-        switch(reservationData.status) {
-            case 'reserved':
-                airtableStatus = 'Reserved';
-                break;
-            case 'arrived':
-                airtableStatus = 'Arrived';
-                break;
-            case 'paid':
-                airtableStatus = 'Paid';
-                break;
-            case 'no-show':
-                airtableStatus = 'No Show';
-                break;
-            default:
-                // Set default status based on source
-                airtableStatus = reservationData.source === 'phone-call' ? 'Reserved' : 'Arrived';
-        }
-        
-        // Create the reservation in Airtable with exact field names
-        const fields = {
-            "Table": reservationData.tableId,
-            "Reservation Type": reservationData.source === 'phone-call' ? 'Phone Call' : 'Floor Plan',
-            "Status": airtableStatus,
-            "Pax": reservationData.pax.toString(), // Ensure it's saved as string
-            "DateandTime": reservationData.startTime,
-            "Duration": reservationData.duration.toString()
-        };
+// Function to save a reservation
+async function saveReservation(formData) {
+    console.log('🔄 Starting saveReservation with data:', formData);
 
-        // Add customer information to Customer Notes field
-        let customerNotes = '';
-        if (reservationData.customerName) {
-            customerNotes += `Customer: ${reservationData.customerName}`;
-        }
-        if (reservationData.notes) {
-            if (customerNotes) customerNotes += '\n';
-            customerNotes += reservationData.notes;
-        }
-        if (customerNotes) {
-            fields["Customer Notes"] = customerNotes;
-        }
-
-        // Add phone number if available
-        if (reservationData.phoneNumber) {
-            fields["PH Number"] = reservationData.phoneNumber;
-        }
-
-        console.log('Saving reservation with fields:', fields); // Debug log
-
-        const result = await window.airtableService.base('tbl9dDLnVa5oLEnuq').create([
-            { fields }
-        ]);
-
-        return result;
-    } catch (error) {
-        console.error('Error saving to Airtable:', error);
-        throw error;
+    // Validate required fields
+    if (!formData.tableId || !formData.source || !formData.status || 
+        !formData.numberOfGuests || !formData.arrivalTime || !formData.duration) {
+        throw new Error('Missing required fields');
     }
+
+    // Find the table
+    const table = window.tables.find(t => t.id === formData.tableId);
+    if (!table) {
+        throw new Error('Table not found');
+    }
+
+    // Check if the table has enough capacity
+    const requestedGuests = parseInt(formData.numberOfGuests);
+    if (requestedGuests > table.capacity) {
+        throw new Error(`Table ${table.name} only has capacity for ${table.capacity} guests`);
+    }
+
+    // Calculate end time based on arrival time and duration
+    const arrivalTime = new Date();
+    const [hours, minutes] = formData.arrivalTime.split(':');
+    arrivalTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    
+    const endTime = new Date(arrivalTime);
+    endTime.setMinutes(endTime.getMinutes() + parseInt(formData.duration));
+
+    // Check for conflicts
+    if (hasReservationConflict(formData.tableId, arrivalTime, endTime)) {
+        throw new Error('This time slot conflicts with an existing reservation');
+    }
+
+    // Create the reservation object
+    const reservation = {
+        id: Date.now().toString(), // Unique ID
+        tableId: formData.tableId,
+        source: formData.source,
+        status: formData.status,
+        numberOfGuests: requestedGuests,
+        arrivalTime: arrivalTime.toISOString(),
+        endTime: endTime.toISOString(),
+        duration: parseInt(formData.duration),
+        customerName: formData.customerName || '',
+        phoneNumber: formData.phoneNumber || '',
+        notes: formData.customerNotes || '',
+        createdAt: new Date().toISOString()
+    };
+
+    console.log('📝 Created reservation object:', reservation);
+
+    // Add the reservation to the table's reservations array
+    if (!table.reservations) {
+        table.reservations = [];
+    }
+    table.reservations.push(reservation);
+
+    // Sort reservations by arrival time
+    table.reservations.sort((a, b) => new Date(a.arrivalTime) - new Date(b.arrivalTime));
+
+    console.log('✅ Added reservation to table:', table.id);
+    console.log('📊 Current reservations for table:', table.reservations);
+
+    // Return the created reservation
+    return reservation;
 }
 
-// Function to handle form submission
-async function handleReservationSubmit(event) {
-    event.preventDefault();
-    
-    const form = event.target;
-    const submitButton = form.querySelector('button[type="submit"]');
-    
+// Main function to handle reservation submission
+async function handleReservationSubmit(form) {
+    console.log('🔥 Starting reservation creation process...');
+
+    const confirmButton = document.getElementById('confirmReservation');
+    const originalText = confirmButton?.innerHTML || 'Confirm Reservation';
+
     try {
-        // Show loading state
-        submitButton.disabled = true;
-        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
-        
-        // Get form data
-        const formData = new FormData(form);
-        const tableId = document.getElementById('selectedTableId').value;
-        console.log('Selected table ID:', tableId);
-        
-        const pax = parseInt(formData.get('numberOfGuests'));
-        console.log('Form data - pax from dropdown:', formData.get('numberOfGuests'), 'parsed as:', pax);
-        
-        const arrivalTime = formData.get('arrivalTime');
-        const duration = parseInt(formData.get('duration'));
-        const customerName = formData.get('customerName')?.trim() || '';
-        const status = document.getElementById('reservationStatus').value;
-        const phoneNumber = formData.get('phoneNumber')?.trim() || '';
-        const notes = formData.get('customerNotes')?.trim() || '';
-        
-        console.log('Selected status:', status); // Debug log
-        
-        // Validate that pax was selected
-        if (!pax || isNaN(pax)) {
-            throw new Error('Please select the number of guests');
+        // Get form values directly from the form
+        const tableId = form.querySelector('#selectedTableId')?.value;
+        const source = form.querySelector('#reservationSource')?.value;
+        const status = form.querySelector('#reservationStatus')?.value;
+        const numberOfGuests = form.querySelector('#numberOfGuests')?.value;
+        const arrivalTime = form.querySelector('#arrivalTime')?.value;
+        const duration = form.querySelector('#duration')?.value;
+        const customerName = form.querySelector('#customerName')?.value?.trim() || '';
+        const phoneNumber = form.querySelector('#phoneNumber')?.value?.trim() || '';
+        const notes = form.querySelector('#customerNotes')?.value?.trim() || '';
+
+        // --- DEBUG LOGS ---
+        console.log('=== RESERVATION FORM DATA ===');
+        console.log({ tableId, source, status, numberOfGuests, arrivalTime, duration, customerName, phoneNumber, notes });
+        console.log('=============================');
+
+        // --- VALIDATION ---
+        if (!tableId || !source || !status || !numberOfGuests || !arrivalTime || !duration) {
+            alert('❌ Please fill in all required fields.');
+            // Highlight missing fields
+            [...form.elements].forEach(el => {
+                if (el.required && !el.value) {
+                    el.style.borderColor = '#dc3545';
+                } else {
+                    el.style.borderColor = '';
+                }
+            });
+            return;
         }
-        
-        // Create start and end times
+
+        // --- PROCESSING ---
+        if (confirmButton) {
+            confirmButton.disabled = true;
+            confirmButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating...';
+        }
+
+        // Create date object from arrival time
+        const today = new Date();
         const [hours, minutes] = arrivalTime.split(':');
-        const startTime = new Date();
-        startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        
-        // Calculate end time using the duration directly
-        const endTime = new Date(startTime);
-        endTime.setMinutes(endTime.getMinutes() + duration);
-        
-        // Check for conflicts before saving
-        const hasConflict = hasReservationConflict(tableId, startTime, endTime);
-        if (hasConflict) {
-            throw new Error('This time slot conflicts with an existing reservation. Please choose a different time after the previous reservation ends.');
-        }
-        
-        // Save to Airtable with selected status
-        const result = await saveReservation({
-            tableId: tableId,
-            source: 'Floor Plan',
-            status: status,
-            pax,
-            startTime: startTime.toISOString(),
-            endTime: endTime.toISOString(),
-            duration: duration,
-            customerName: customerName || null,
-            phoneNumber: phoneNumber || null,
-            notes: notes || null
-        });
+        const arrivalDateTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes);
 
-        // Clear Airtable cache to ensure fresh data
-        if (window.airtableService) {
-            window.airtableService.cachedReservations = [];
-            window.airtableService.lastFetchTime = null;
+        // Ensure AirtableService is ready
+        if (!window.airtableService) {
+            throw new Error('AirtableService is not available. Please refresh the page.');
         }
 
-        // Close the popover
-        closeReservationPopover();
+        // Call the Airtable service with the correct reservation source
+        const airtableReservation = await window.airtableService.createWalkInReservation(
+            tableId,
+            arrivalDateTime,
+            source, // Pass the user-selected source directly
+            {
+                customerName,
+                phoneNumber,
+                pax: parseInt(numberOfGuests),
+                customerNotes: notes,
+                systemNotes: `Duration: ${duration} minutes. Created via floor plan.`,
+                status,
+                duration: parseInt(duration)
+            }
+        );
+
+        if (!airtableReservation) {
+            throw new Error('Airtable did not return a confirmation.');
+        }
+
+        console.log('✅ Reservation created successfully:', airtableReservation);
+
+        // --- UI FEEDBACK ---
+        const modal = bootstrap.Modal.getInstance(document.getElementById('reservationModal'));
+        if (modal) modal.hide();
         
-        // First fetch new data
-        await fetchAndUpdateReservations();
+        form.reset();
         
-        // Then update the UI
-        initialize();
-        updateFloorPlanTableStatuses();
-        
-        // Finally show the success message with more details
-        const guestText = pax === 1 ? 'guest' : 'guests';
-        const customerText = customerName ? ` for ${customerName}` : '';
-        const timeText = startTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-        const successMessage = `Reservation created for Table ${tableId}${customerText} - ${pax} ${guestText} at ${timeText}`;
-        
-        console.log('About to show success message:', successMessage); // Debug log
-        showSuccessMessage(successMessage);
-        
-        // Backup alert to ensure user gets feedback
-        setTimeout(() => {
-            alert('✅ SUCCESS: ' + successMessage);
+        const successMessage = `✅ Reservation confirmed for Table ${tableId} at ${arrivalDateTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+        setTimeout(() => alert(successMessage), 300);
+
+        // Refresh UI data
+        setTimeout(async () => {
+            await fetchAndUpdateReservations();
+            updateFloorPlanTableStatuses();
         }, 500);
-        
+
     } catch (error) {
-        console.error('Error saving reservation:', error);
-        alert('Error: ' + error.message);
+        console.error('❌ Error creating reservation:', error);
+        alert(`❌ Failed to create reservation: ${error.message}`);
     } finally {
-        submitButton.disabled = false;
-        submitButton.innerHTML = 'Confirm';
+        if (confirmButton) {
+            confirmButton.disabled = false;
+            confirmButton.innerHTML = originalText;
+        }
     }
 }
+
+// Make the function globally available
+window.handleReservationSubmit = handleReservationSubmit;
 
 // Helper function to calculate end time from start time and duration
 function calculateEndTime(startTimeStr, systemNotes = null, duration = null) {
@@ -1774,39 +1857,20 @@ function extractDuration(systemNotes) {
     return durationMatch ? parseInt(durationMatch[1]) : null;
 }
 
-// Create local reservation object
-const localReservation = {
-    id: airtableRes.id,
-    tableId: airtableRes.tableId,
-    source: getSourceFromAirtableType(airtableRes.reservationType),
-    status: getStatusFromAirtableStatus(airtableRes.status),
-    type: airtableRes.status === 'phone-call' ? 'phone-call' : 'walk-in',
-    pax: airtableRes.pax || table.capacity,
-    startTime: airtableRes.time,
-    duration: airtableRes.duration ? parseInt(airtableRes.duration) : extractDuration(airtableRes.systemNotes),
-    endTime: calculateEndTime(airtableRes.time, null, airtableRes.duration ? parseInt(airtableRes.duration) : extractDuration(airtableRes.systemNotes)),
-    customerName: airtableRes.customerName,
-    phoneNumber: airtableRes.phoneNumber,
-    customerNotes: airtableRes.customerNotes,
-    specialRequest: getSourceFromAirtableType(airtableRes.reservationType) === 'calendly' ? 
-        extractSpecialRequest(airtableRes.customerNotes) : null,
-    systemNotes: airtableRes.systemNotes,
-    createdAt: airtableRes.time,
-    airtableId: airtableRes.id
-};
 
-// Add form submit event listener for the reservation form
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Adding form submit listener'); // Debug log
-    
-    // Use event delegation to handle form submission
-    document.addEventListener('submit', function(event) {
-        if (event.target.id === 'reservationForm') {
-            console.log('Reservation form submitted!'); // Debug log
-            handleReservationSubmit(event);
-        }
-    });
-});
+
+// DISABLED: Form submit handler - using button click handler in main.js instead
+// document.addEventListener('DOMContentLoaded', function() {
+//     console.log('Adding form submit listener'); // Debug log
+//     
+//     // Use event delegation to handle form submission
+//     document.addEventListener('submit', function(event) {
+//         if (event.target.id === 'reservationForm') {
+//             console.log('Reservation form submitted!'); // Debug log
+//             handleReservationSubmit(event);
+//         }
+//     });
+// });
 
 // Automatically scale the floor plan to fit the container
 function updateFloorPlanScale() {

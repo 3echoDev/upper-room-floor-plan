@@ -211,7 +211,7 @@ class AirtableService {
             // Map reservation type - use reservationType parameter for the Airtable field
             switch(reservationType) {
                 case 'walk-in':
-                    airtableReservationType = 'Walk in';
+                    airtableReservationType = 'Floor Plan';
                     break;
                 case 'phone-call':
                     airtableReservationType = 'Phone call';
@@ -220,15 +220,16 @@ class AirtableService {
                     airtableReservationType = 'Calendly';
                     break;
                 default:
-                    airtableReservationType = 'Walk in';
+                    airtableReservationType = 'Floor Plan';
             }
             
-            console.log('Mapped values:', { 
-                originalReservationType: reservationType,
-                originalStatus: additionalData.status,
-                airtableStatus,
-                airtableReservationType 
-            });
+            console.log('🔍 RESERVATION TYPE MAPPING DEBUG:');
+            console.log('Original form source value:', reservationType);
+            console.log('Mapped Airtable reservation type:', airtableReservationType);
+            console.log('(Note: walk-in maps to "Floor Plan" to match Airtable options)');
+            console.log('Original status from form:', additionalData.status);
+            console.log('Mapped Airtable status:', airtableStatus);
+            console.log('===========================================');
             
             const reservationData = {
                 fields: {
@@ -274,7 +275,12 @@ class AirtableService {
                 reservationData.fields["System Notes"] = `Duration: ${additionalData.duration} minutes (until ${endTime.toLocaleTimeString()})`;
             }
 
-            console.log('Final reservation data to save:', reservationData);
+            console.log('📤 FINAL DATA BEING SAVED TO AIRTABLE:');
+            console.log('Table:', reservationData.fields.Table);
+            console.log('Reservation Type:', reservationData.fields["Reservation Type"]);
+            console.log('Status:', reservationData.fields.Status);
+            console.log('Full reservation data:', reservationData);
+            console.log('===========================================');
             
             try {
                 const record = await this.base('tbl9dDLnVa5oLEnuq').create([reservationData]);

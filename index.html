@@ -298,7 +298,7 @@
                         <div class="row mb-3">
                             <div class="col-md-4">
                                 <label class="form-label">Source</label>
-                                <select class="form-select" id="reservationSource" required>
+                                <select class="form-select" id="reservationSource" name="source" required>
                                     <option value="walk-in" selected>Walk-in</option>
                                     <option value="phone-call">Phone Call</option>
                                     <option value="calendly">Calendly</option>
@@ -306,7 +306,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Status</label>
-                                <select class="form-select" id="reservationStatus" required>
+                                <select class="form-select" id="reservationStatus" name="status" required>
                                     <option value="reserved">Reserved</option>
                                     <option value="arrived">Arrived</option>
                                     <option value="paid">Paid</option>
@@ -315,7 +315,7 @@
                             </div>
                             <div class="col-md-4">
                                 <label class="form-label">Guests</label>
-                                <select class="form-select" id="numberOfGuests" required>
+                                <select class="form-select" id="numberOfGuests" name="numberOfGuests" required>
                                     <option value="">Select</option>
                                     <option value="1">1 guest</option>
                                     <option value="2">2 guests</option>
@@ -332,21 +332,18 @@
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label class="form-label">Arrival Time</label>
-                                <input type="time" class="form-control" id="arrivalTime" required min="11:30" max="23:00">
+                                <input type="time" class="form-control" id="arrivalTime" name="arrivalTime" required min="11:30" max="23:00">
                                 <div class="form-text">Hours: 11:30 AM - 11:00 PM</div>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Duration</label>
-                                <select class="form-select" id="duration" required>
+                                <select class="form-select" id="duration" name="duration" required>
                                     <option value="">Select duration</option>
                                     <option value="30">30 minutes</option>
                                     <option value="60">1 hour</option>
                                     <option value="90">1.5 hours</option>
                                     <option value="120">2 hours</option>
                                 </select>
-                                <div class="form-text">
-                                    <span id="durationRule">Select time for recommendations</span>
-                                </div>
                             </div>
                         </div>
 
@@ -354,26 +351,28 @@
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <label class="form-label">Customer Name <small>(Optional)</small></label>
-                                <input type="text" class="form-control" id="customerName" placeholder="Enter name (optional)">
+                                <input type="text" class="form-control" id="customerName" name="customerName" placeholder="Enter name (optional)">
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Phone Number <small>(Optional)</small></label>
-                                <input type="tel" class="form-control" id="phoneNumber" placeholder="Enter phone (optional)">
+                                <input type="tel" class="form-control" id="phoneNumber" name="phoneNumber" placeholder="Enter phone (optional)">
                             </div>
                         </div>
 
                         <!-- Notes -->
                         <div class="mb-3">
                             <label class="form-label">Notes</label>
-                            <textarea class="form-control" id="customerNotes" rows="3" placeholder="Any special requests or notes..."></textarea>
+                            <textarea class="form-control" id="customerNotes" name="customerNotes" rows="3" placeholder="Any special requests or notes..."></textarea>
                         </div>
 
-                        <input type="hidden" id="selectedTableId">
+                        <input type="hidden" id="selectedTableId" name="selectedTableId">
+                        
+                        <!-- Form Buttons -->
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="confirmReservation">Confirm Reservation</button>
+                        </div>
                     </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="confirmReservation">Confirm Reservation</button>
                 </div>
             </div>
         </div>
@@ -445,8 +444,8 @@
             <button type="button" class="reservation-popover-close" onclick="closeReservationPopover()">×</button>
         </div>
         <div class="reservation-popover-body">
-            <form id="reservationForm" onsubmit="handleReservationSubmit(event)">
-                <input type="hidden" id="selectedTableId" name="selectedTableId">
+            <form id="popoverReservationForm">
+                <input type="hidden" id="popoverSelectedTableId" name="selectedTableId">
                 
                 <!-- Table Info -->
                 <div class="table-info alert alert-info mb-3 py-2">
@@ -456,16 +455,16 @@
                 <!-- Source and Status -->
                 <div class="source-status-section">
                     <div class="form-group">
-                        <label class="form-label" for="reservationSource">Source</label>
-                        <select class="form-select" id="reservationSource" name="source" required>
+                        <label class="form-label" for="popoverReservationSource">Source</label>
+                        <select class="form-select" id="popoverReservationSource" name="source" required>
                             <option value="walk-in" selected>Walk-in</option>
                             <option value="phone-call">Phone Call</option>
                             <option value="calendly">Calendly</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label" for="reservationStatus">Status</label>
-                        <select class="form-select" id="reservationStatus" name="status" required>
+                        <label class="form-label" for="popoverReservationStatus">Status</label>
+                        <select class="form-select" id="popoverReservationStatus" name="status" required>
                             <option value="reserved">Reserved</option>
                             <option value="arrived">Arrived</option>
                             <option value="paid">Paid</option>
@@ -484,15 +483,15 @@
                 
                 <!-- Arrival Time -->
                 <div class="form-group">
-                    <label class="form-label" for="arrivalTime">Arrival Time</label>
-                    <input type="time" class="form-control" id="arrivalTime" name="arrivalTime" required min="11:30" max="23:00">
-                    <small id="durationRule" class="form-text text-muted"></small>
+                    <label class="form-label" for="popoverArrivalTime">Arrival Time</label>
+                    <input type="time" class="form-control" id="popoverArrivalTime" name="arrivalTime" required min="11:30" max="23:00">
+                    <small id="popoverDurationRule" class="form-text text-muted"></small>
                 </div>
                 
                 <!-- Duration -->
                 <div class="form-group">
-                    <label class="form-label" for="duration">Duration</label>
-                    <select class="form-select" id="duration" name="duration" required>
+                    <label class="form-label" for="popoverDuration">Duration</label>
+                    <select class="form-select" id="popoverDuration" name="duration" required>
                         <option value="60">1 hour</option>
                         <option value="90">1.5 hours</option>
                         <option value="120">2 hours</option>
@@ -503,24 +502,24 @@
                 
                 <!-- Customer Details -->
                 <div class="form-group">
-                    <label class="form-label" for="customerName">Customer Name</label>
-                    <input type="text" class="form-control" id="customerName" name="customerName">
+                    <label class="form-label" for="popoverCustomerName">Customer Name</label>
+                    <input type="text" class="form-control" id="popoverCustomerName" name="customerName">
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="phoneNumber">Phone Number</label>
-                    <input type="tel" class="form-control" id="phoneNumber" name="phoneNumber">
+                    <label class="form-label" for="popoverPhoneNumber">Phone Number</label>
+                    <input type="tel" class="form-control" id="popoverPhoneNumber" name="phoneNumber">
                 </div>
                 
                 <div class="form-group">
-                    <label class="form-label" for="customerNotes">Notes</label>
-                    <textarea class="form-control" id="customerNotes" name="customerNotes" rows="2"></textarea>
+                    <label class="form-label" for="popoverCustomerNotes">Notes</label>
+                    <textarea class="form-control" id="popoverCustomerNotes" name="customerNotes" rows="2"></textarea>
                 </div>
                 
                 <!-- Form Buttons -->
                 <div class="d-flex justify-content-end gap-2 mt-3">
                     <button type="button" class="btn btn-secondary" onclick="closeReservationPopover()">Cancel</button>
-                    <button type="submit" class="btn btn-primary">Confirm</button>
+                    <button type="button" class="btn btn-primary" onclick="handlePopoverSubmit(event)">Confirm</button>
                 </div>
             </form>
         </div>

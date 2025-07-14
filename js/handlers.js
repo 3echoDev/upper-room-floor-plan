@@ -77,7 +77,16 @@ window.handleStatusChange = async function(event) {
                 const { startDateTime } = parseTimeSlot({ rawTime: timeSlot }, now);
                 
                 // Create a walk-in or phone call reservation based on selection
-                await window.airtableService.createWalkInReservation(tableId, startDateTime, newStatus);
+                // Fix: Pass proper reservation type instead of status
+                const reservationType = newStatus === 'phone-call' ? 'phone-call' : 'walk-in';
+                const actualStatus = newStatus === 'phone-call' ? 'reserved' : 'arrived';
+                
+                await window.airtableService.createWalkInReservation(
+                    tableId, 
+                    startDateTime, 
+                    reservationType, 
+                    { status: actualStatus }
+                );
                 console.log(`Successfully created ${newStatus} reservation for ${tableId} at ${timeSlot}`);
                 
                 // Update local state
@@ -208,7 +217,7 @@ async function fetchAndUpdateReservations() {
                     }
                     return null;
                 })(),
-                customerName: airtableRes.customerName,
+                customerName: airtableRes.customerName || (airtableRes.customerNotes ? extractCustomerName(airtableRes.customerNotes) : null),
                 phoneNumber: airtableRes.phoneNumber,
                 customerNotes: airtableRes.customerNotes,
                 // For Calendly bookings, extract special request from customer notes
@@ -393,13 +402,19 @@ function updateFloorPlanTableStatuses() {
 function getSourceFromAirtableType(airtableType) {
     if (!airtableType) return 'walk-in';
     
+    // Log what we're receiving from Airtable for debugging
+    if (airtableType.toLowerCase() === 'floor plan') {
+        console.log('✅ Found "Floor Plan" in Airtable data - this is correct for walk-in reservations');
+        console.log('Airtable reservation type received:', airtableType);
+    }
+    
     switch(airtableType.toLowerCase()) {
         case 'calendly':
             return 'calendly';
         case 'phone call':
             return 'phone-call';
-        case 'walk in':
         case 'floor plan':
+        case 'walk in':  // Keep this for backward compatibility
         default:
             return 'walk-in';
     }
@@ -421,12 +436,25 @@ function getStatusFromAirtableStatus(airtableStatus) {
             return 'no-show';
         case 'phone call':
             return 'reserved'; // Phone calls always default to reserved status
-        case 'walk in':
         case 'floor plan':
+        case 'walk in':  // Keep this for backward compatibility
             return 'arrived'; // Walk-ins and floor plan reservations default to arrived status
         default:
             return 'reserved'; // Default to reserved for any unknown status
     }
+}
+
+// Helper function to extract customer name from customer notes
+function extractCustomerName(customerNotes) {
+    if (!customerNotes) return null;
+    
+    // Try to find "Customer: " followed by text
+    const match = customerNotes.match(/Customer:\s*([^\n]+)/);
+    if (match && match[1]) {
+        return match[1].trim();
+    }
+    
+    return null;
 }
 
 // Helper function to extract special request from customer notes for Calendly bookings

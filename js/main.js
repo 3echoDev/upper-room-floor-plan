@@ -274,7 +274,7 @@ window.addEventListener('load', function() {
                 <!-- Details - Clean Line by Line Display with Status Color Accent -->
                 <div class="ms-2">
                     <div class="mb-1">
-                        <strong class="text-${statusColor}">Guest:</strong> ${reservation.customerName || (source === 'calendly' ? 'Calendly Booking' : 'Walk-in Customer')}
+                        <strong class="text-${statusColor}">Guest:</strong> ${reservation.customerName || 'Walk-in Customer'}
                     </div>
                     <div class="mb-1">
                         <strong class="text-${statusColor}">Pax:</strong> ${(reservation.pax && reservation.pax !== "" ? reservation.pax : table.capacity)} guests
@@ -515,116 +515,136 @@ window.addEventListener('load', function() {
             return;
         }
 
-        // Store current scroll position and prevent body scrolling
-        const currentScrollY = window.scrollY;
-        const currentScrollX = window.scrollX;
-        
-        // Prevent any scrolling during modal operations
-        document.body.style.position = 'fixed';
-        document.body.style.top = `-${currentScrollY}px`;
-        document.body.style.left = `-${currentScrollX}px`;
-        document.body.style.width = '100%';
-        document.body.style.overflow = 'hidden';
-
         // Set table information in modal
-        document.getElementById('selectedTableId').value = tableId;
-        document.getElementById('selectedTableInfo').textContent = `${tableId} - ${table.type}`;
-        document.getElementById('selectedTableDetails').textContent = `Capacity: ${table.capacity} guests`;
-
-        // Reset form to clear any previous data
-        const form = document.getElementById('reservationForm');
-        if (form) {
-            form.reset();
+        const selectedTableIdInput = document.getElementById('selectedTableId');
+        const selectedTableInfo = document.getElementById('selectedTableInfo');
+        const selectedTableDetails = document.getElementById('selectedTableDetails');
+        
+        if (selectedTableIdInput) {
+            selectedTableIdInput.value = tableId;
+            console.log('✅ Set selected table ID:', tableId);
+        } else {
+            console.error('❌ selectedTableId input not found');
+        }
+        
+        if (selectedTableInfo) {
+            selectedTableInfo.textContent = `Table ${table.name}`;
+            console.log('✅ Set table info header');
+        }
+        
+        if (selectedTableDetails) {
+            selectedTableDetails.textContent = `${table.type} - Capacity: ${table.capacity} pax`;
+            console.log('✅ Set table details');
         }
 
-        // Set current time as default arrival time
+        // Set default arrival time to current time rounded to nearest 30 minutes
         const now = new Date();
-        const timeString = now.toTimeString().slice(0, 5); // HH:MM format
+        const minutes = now.getMinutes();
+        const roundedMinutes = Math.ceil(minutes / 30) * 30;
+        now.setMinutes(roundedMinutes);
+        now.setSeconds(0);
+        now.setMilliseconds(0);
+        
         const arrivalTimeInput = document.getElementById('arrivalTime');
         if (arrivalTimeInput) {
-            arrivalTimeInput.value = timeString;
+            arrivalTimeInput.value = now.toTimeString().slice(0, 5);
+            console.log('✅ Set default arrival time:', arrivalTimeInput.value);
         }
 
-        // Set default number of guests to table capacity (but don't exceed dropdown options)
-        const numberOfGuestsSelect = document.getElementById('numberOfGuests');
-        if (numberOfGuestsSelect) {
-            const maxOption = Math.min(table.capacity, 6); // Cap at 6 since that's our highest option
-            numberOfGuestsSelect.value = maxOption.toString();
-        }
-
-        // Reset other optional fields
-        const customerNameInput = document.getElementById('customerName');
-        const phoneNumberInput = document.getElementById('phoneNumber');
-        const notesInput = document.getElementById('customerNotes');
-        
-        if (customerNameInput) customerNameInput.value = '';
-        if (phoneNumberInput) phoneNumberInput.value = '';
-        if (notesInput) notesInput.value = '';
-
-        // Set up duration help text based on time
-        const updateDurationHelp = () => {
-            const time = arrivalTimeInput.value;
-            const durationRule = document.getElementById('durationRule');
-            if (time && durationRule) {
-                const hour = parseInt(time.split(':')[0]);
-                let rule = '';
-                
-                if (hour >= 11 && hour < 14) {
-                    rule = 'Lunch period: 1 hour recommended';
-                } else if (hour >= 14 && hour < 17) {
-                    rule = 'Afternoon: 1.5 hours recommended';
-                } else if (hour >= 17 && hour < 22) {
-                    rule = 'Dinner: 2 hours recommended';
-                } else {
-                    rule = 'Late dining: 1.5 hours recommended';
-                }
-                
-                durationRule.textContent = rule;
-            }
-        };
-        
-        if (arrivalTimeInput) {
-            arrivalTimeInput.addEventListener('change', updateDurationHelp);
-            updateDurationHelp(); // Set initial help text
-        }
-
-        // Function to restore scroll position
-        const restoreScrollPosition = () => {
-            document.body.style.position = '';
-            document.body.style.top = '';
-            document.body.style.left = '';
-            document.body.style.width = '';
-            document.body.style.overflow = '';
-            window.scrollTo(currentScrollX, currentScrollY);
-        };
-
-        // Show Bootstrap modal with focus prevention
-        const modalElement = document.getElementById('reservationModal');
-        const modal = new bootstrap.Modal(modalElement, {
-            backdrop: true,
-            keyboard: true,
-            focus: false  // Prevent auto-focus which can cause scrolling
-        });
-        
+        // Show the modal
+        const modal = new bootstrap.Modal(document.getElementById('reservationModal'));
         modal.show();
-        
-        // Handle modal events
-        modalElement.addEventListener('shown.bs.modal', function () {
-            // Focus on the first input without causing scroll
-            setTimeout(() => {
-                const firstSelect = document.getElementById('reservationSource');
-                if (firstSelect) {
-                    firstSelect.focus({ preventScroll: true });
+        console.log('✅ Showed reservation modal');
+
+        // Set up form submission handler
+        const confirmButton = document.getElementById('confirmReservation');
+
+        // Remove any existing event listeners on the button
+        if (confirmButton) {
+            const newConfirmButton = confirmButton.cloneNode(true);
+            confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
+            console.log('✅ Cleaned up old button event listeners');
+
+            // Set up the click handler
+            const finalConfirmButton = document.getElementById('confirmReservation');
+            finalConfirmButton.addEventListener('click', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🔥 Confirm button clicked');
+
+                // Disable the button to prevent double submission
+                finalConfirmButton.disabled = true;
+                finalConfirmButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+
+                try {
+                    // Get the form data directly from the form elements
+                    const formData = {
+                        tableId: document.getElementById('selectedTableId').value,
+                        source: document.getElementById('reservationSource').value,
+                        status: document.getElementById('reservationStatus').value,
+                        numberOfGuests: document.getElementById('numberOfGuests').value,
+                        arrivalTime: document.getElementById('arrivalTime').value,
+                        duration: document.getElementById('duration').value,
+                        customerName: document.getElementById('customerName').value,
+                        phoneNumber: document.getElementById('phoneNumber').value,
+                        customerNotes: document.getElementById('customerNotes').value
+                    };
+
+                    console.log('📝 Form data collected:', formData);
+
+                    // Validate required fields
+                    if (!formData.tableId || !formData.source || !formData.status || 
+                        !formData.numberOfGuests || !formData.arrivalTime || !formData.duration) {
+                        throw new Error('Please fill in all required fields');
+                    }
+
+                    // Use the Airtable service directly instead of saveReservation
+                    const today = new Date();
+                    const [hours, minutes] = formData.arrivalTime.split(':');
+                    const arrivalDateTime = new Date(today.getFullYear(), today.getMonth(), today.getDate(), hours, minutes);
+
+                    const airtableReservation = await window.airtableService.createWalkInReservation(
+                        formData.tableId,
+                        arrivalDateTime,
+                        formData.source,
+                        {
+                            customerName: formData.customerName,
+                            phoneNumber: formData.phoneNumber,
+                            pax: parseInt(formData.numberOfGuests),
+                            customerNotes: formData.customerNotes,
+                            systemNotes: `Duration: ${formData.duration} minutes. Created via floor plan.`,
+                            status: formData.status,
+                            duration: parseInt(formData.duration)
+                        }
+                    );
+
+                    console.log('✅ Reservation saved successfully:', airtableReservation);
+
+                    // Close the modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('reservationModal'));
+                    modal.hide();
+
+                    // Show success message
+                    showSuccessMessage('Reservation created successfully!');
+
+                    // Update the UI
+                    setTimeout(async () => {
+                        await fetchAndUpdateReservations();
+                        updateFloorPlanTableStatuses();
+                        updateReservationCount();
+                    }, 500);
+
+                } catch (error) {
+                    console.error('❌ Error saving reservation:', error);
+                    alert('Failed to save reservation: ' + error.message);
+                } finally {
+                    // Re-enable the button
+                    finalConfirmButton.disabled = false;
+                    finalConfirmButton.innerHTML = 'Confirm Reservation';
                 }
-            }, 100);
-        }, { once: true });
-        
-        // Restore scroll position when modal is hidden
-        modalElement.addEventListener('hidden.bs.modal', function () {
-            restoreScrollPosition();
-        }, { once: true });
-        
-        console.log('Make reservation modal opened for table:', tableId);
+            });
+            console.log('✅ Added click handler to confirm button');
+        }
     }
 
     // Function to close modal (now handled by Bootstrap, but keeping for compatibility)
@@ -635,169 +655,41 @@ window.addEventListener('load', function() {
         }
     }
 
-    // Handle reservation confirmation (only add once)
-    if (!window.confirmationHandlerAdded) {
-        document.getElementById('confirmReservation').addEventListener('click', async function() {
-            const form = document.getElementById('reservationForm');
-            
-            // Get form values
-            const tableId = document.getElementById('selectedTableId').value;
-            const source = document.getElementById('reservationSource').value;
-            const status = document.getElementById('reservationStatus').value;
-            const numberOfGuests = document.getElementById('numberOfGuests').value;
-            const arrivalTime = document.getElementById('arrivalTime').value;
-            const duration = document.getElementById('duration').value;
-            const customerName = document.getElementById('customerName').value.trim();
-            const phoneNumber = document.getElementById('phoneNumber').value.trim();
-            const notes = document.getElementById('customerNotes').value.trim();
-
-            // Validate required fields
-            if (!tableId || !source || !status || !numberOfGuests || !arrivalTime || !duration) {
-                // Highlight missing fields
-                const requiredFields = [
-                    { id: 'reservationSource', value: source },
-                    { id: 'reservationStatus', value: status },
-                    { id: 'numberOfGuests', value: numberOfGuests },
-                    { id: 'arrivalTime', value: arrivalTime },
-                    { id: 'duration', value: duration }
-                ];
-
-                requiredFields.forEach(field => {
-                    const element = document.getElementById(field.id);
-                    if (!field.value) {
-                        element.classList.add('is-invalid');
-                    } else {
-                        element.classList.remove('is-invalid');
-                    }
-                });
-
-                // Show validation message
-                const alertDiv = document.createElement('div');
-                alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
-                alertDiv.innerHTML = `
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    Please fill in all required fields (marked with red border).
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
-                
-                // Remove any existing alert
-                const existingAlert = form.querySelector('.alert-danger');
-                if (existingAlert) {
-                    existingAlert.remove();
-                }
-                
-                form.appendChild(alertDiv);
-                
-                // Auto-remove validation message after 5 seconds
-                setTimeout(() => {
-                    if (alertDiv.parentNode) {
-                        alertDiv.remove();
-                    }
-                }, 5000);
-
-                return;
-            }
-
-            // Remove validation classes
-            const allFormControls = form.querySelectorAll('.form-control, .form-select');
-            allFormControls.forEach(control => {
-                control.classList.remove('is-invalid');
-            });
-
-            // Show loading state
-            const confirmButton = this;
-            const originalText = confirmButton.innerHTML;
-            confirmButton.disabled = true;
-            confirmButton.innerHTML = '<span class="spinner"></span>Creating...';
-
-            try {
-                // Create date time from arrival time
-                const today = new Date();
-                const [hours, minutes] = arrivalTime.split(':');
-                const arrivalDateTime = new Date(today);
-                arrivalDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
-                // Create reservation object
-                const reservationData = {
-                    tableId: tableId,
-                    source: source,
-                    status: status,
-                    pax: parseInt(numberOfGuests),
-                    arrivalTime: arrivalDateTime.toISOString(),
-                    duration: parseInt(duration),
-                    customerName: customerName || null,
-                    phoneNumber: phoneNumber || null,
-                    notes: notes || null
-                };
-
-                // Debug log for pax value
-                console.log('Creating reservation with pax:', reservationData.pax);
-
-                // Create the reservation
-                const airtableReservation = await window.airtableService.createWalkInReservation(
-                    reservationData.tableId,
-                    arrivalDateTime,
-                    reservationData.source,
-                    {
-                        customerName: reservationData.customerName,
-                        phoneNumber: reservationData.phoneNumber,
-                        pax: reservationData.pax,
-                        customerNotes: reservationData.notes,
-                        systemNotes: `Duration: ${reservationData.duration} minutes. Created via manual reservation.`,
-                        status: reservationData.status,
-                        duration: reservationData.duration
-                    }
-                );
-
-                // Hide the Bootstrap modal (this will trigger the hidden.bs.modal event and restore scroll)
-                const modal = bootstrap.Modal.getInstance(document.getElementById('reservationModal'));
-                if (modal) {
-                    modal.hide();
-                }
-
-                // Reset the form
-                form.reset();
-
-                // Show success message with more details
-                const guestText = reservationData.pax === 1 ? 'guest' : 'guests';
-                const customerText = customerName ? ` for ${customerName}` : '';
-                const timeText = arrivalDateTime.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-                const successMessage = `Reservation created for Table ${tableId}${customerText} - ${reservationData.pax} ${guestText} at ${timeText}`;
-                showSuccessMessage(successMessage);
-
-                // Refresh the UI
-                initialize();
-                fetchAndUpdateReservations();
-                updateFloorPlanTableStatuses();
-
-            } catch (error) {
-                console.error('Error creating reservation:', error);
-                
-                // Show error message
-                const alertDiv = document.createElement('div');
-                alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
-                alertDiv.innerHTML = `
-                    <i class="bi bi-exclamation-triangle me-2"></i>
-                    Failed to create reservation. Please check your connection and try again.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                `;
-                
-                // Remove any existing alert
-                const existingAlert = form.querySelector('.alert-danger');
-                if (existingAlert) {
-                    existingAlert.remove();
-                }
-                
-                form.appendChild(alertDiv);
-            } finally {
-                // Reset button state
-                confirmButton.disabled = false;
-                confirmButton.innerHTML = originalText;
-            }
+    // Prevent form submission to avoid page refresh
+    const reservationForm = document.getElementById('reservationForm');
+    if (reservationForm) {
+        reservationForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            console.log('🚫 Form submission prevented - using button click handler instead');
+            return false;
         });
-        window.confirmationHandlerAdded = true;
-        console.log('Added reservation confirmation handler (one time only)');
     }
+
+    // Debug function to check system readiness
+    function checkSystemReadiness() {
+        const checks = {
+            airtableService: !!window.airtableService,
+            formExists: !!document.getElementById('reservationForm'),
+            confirmButton: !!document.getElementById('confirmReservation'),
+            selectedTableId: !!document.getElementById('selectedTableId'),
+            sourceSelect: !!document.getElementById('reservationSource'),
+            statusSelect: !!document.getElementById('reservationStatus')
+        };
+        
+        console.log('🔍 System readiness check:', checks);
+        
+        const allReady = Object.values(checks).every(check => check);
+        if (!allReady) {
+            console.error('❌ System not ready:', checks);
+            return false;
+        }
+        
+        console.log('✅ All systems ready');
+        return true;
+    }
+
+    // handleReservationSubmit function removed - using direct button click handler instead
 
     // Helper function to show success message
     function showSuccessMessage(message) {
