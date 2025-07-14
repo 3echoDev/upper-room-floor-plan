@@ -928,17 +928,14 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                             "Duration": assignmentResult.reservation.duration.toString()
                         };
 
-                        // Add customer information to Customer Notes field (like walk-in reservations)
-                        let customerNotes = '';
+                        // Add customer name to the proper Name field
                         if (assignmentResult.reservation.customerName) {
-                            customerNotes += `Customer: ${assignmentResult.reservation.customerName}`;
+                            fields["Name"] = assignmentResult.reservation.customerName;
                         }
+                        
+                        // Add special request to Customer Notes (only if it exists)
                         if (assignmentResult.reservation.specialRequest) {
-                            if (customerNotes) customerNotes += '\n';
-                            customerNotes += `Special Request: ${assignmentResult.reservation.specialRequest}`;
-                        }
-                        if (customerNotes) {
-                            fields["Customer Notes"] = customerNotes;
+                            fields["Customer Notes"] = assignmentResult.reservation.specialRequest;
                         }
 
                         // Add phone number if available

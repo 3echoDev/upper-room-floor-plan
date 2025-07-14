@@ -242,14 +242,12 @@ class AirtableService {
             
             // Add optional fields if provided
             if (additionalData.customerName) {
-                // Put customer name in Customer Notes with a prefix
-                const nameNote = `Customer: ${additionalData.customerName}`;
-                if (additionalData.customerNotes) {
-                    reservationData.fields["Customer Notes"] = `${nameNote}\n${additionalData.customerNotes}`;
-                } else {
-                    reservationData.fields["Customer Notes"] = nameNote;
-                }
-            } else if (additionalData.customerNotes) {
+                // Save customer name to the proper Name field
+                reservationData.fields["Name"] = additionalData.customerName;
+            }
+            
+            // Save customer notes/special requests separately (only if they exist)
+            if (additionalData.customerNotes) {
                 reservationData.fields["Customer Notes"] = additionalData.customerNotes;
             }
             
