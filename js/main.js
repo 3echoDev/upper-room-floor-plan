@@ -939,19 +939,47 @@ window.addEventListener('load', function() {
         const filename = `qr_table${TABLE_NUMBER}_${timestamp_str}.png`;
 
         // Generate QR code on our custom canvas
-        QRCode.toCanvas(document.getElementById('custom-qrcode-canvas'), deep_link_url, function(error) {
-            if (error) console.error(error);
-            console.log(`✅ QR code displayed on canvas`);
-            console.log(`🔗 Deep link: ${deep_link_url}`);
-        });
+        if (typeof QRCode !== 'undefined') {
+            QRCode.toCanvas(document.getElementById('custom-qrcode-canvas'), deep_link_url, function(error) {
+                if (error) {
+                    console.error('QR code generation error:', error);
+                    // Show error message in popup
+                    const errorAlert = document.createElement('div');
+                    errorAlert.className = 'alert alert-danger mt-2';
+                    errorAlert.innerHTML = `
+                        <i class="bi bi-exclamation-triangle me-1"></i>
+                        Failed to generate QR code: ${error.message}
+                    `;
+                    popup.querySelector('.qr-popup-body').appendChild(errorAlert);
+                } else {
+                    console.log(`✅ QR code displayed on canvas`);
+                    console.log(`🔗 Deep link: ${deep_link_url}`);
+                }
+            });
+        } else {
+            console.error('QRCode library not loaded');
+            // Show error message in popup
+            const errorAlert = document.createElement('div');
+            errorAlert.className = 'alert alert-danger mt-2';
+            errorAlert.innerHTML = `
+                <i class="bi bi-exclamation-triangle me-1"></i>
+                QR Code library not loaded. Please refresh the page.
+            `;
+            popup.querySelector('.qr-popup-body').appendChild(errorAlert);
+        }
 
         // Set up download link
         const downloadLink = document.getElementById('custom-download-link');
-        if (downloadLink) {
+        if (downloadLink && typeof QRCode !== 'undefined') {
             QRCode.toDataURL(deep_link_url, function(err, url) {
-                downloadLink.href = url;
-                downloadLink.download = filename;
-                downloadLink.style.display = 'block';
+                if (err) {
+                    console.error('Failed to generate download link:', err);
+                    downloadLink.style.display = 'none';
+                } else {
+                    downloadLink.href = url;
+                    downloadLink.download = filename;
+                    downloadLink.style.display = 'block';
+                }
 
                 // Set up print button
                 const printBtn = document.getElementById('print-qr-btn');
