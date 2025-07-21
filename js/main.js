@@ -229,7 +229,7 @@ window.addEventListener('load', function() {
         const getSourceInfo = (source) => {
             switch(source) {
                 case 'walk-in': return { icon: 'bi-person-walking', label: 'Walk-in' };
-                case 'phone-call': return { icon: 'bi-telephone', label: 'Phone Call' };
+                case 'phone-call': return { icon: 'bi-telephone', label: 'Voice Agent' };
                 case 'calendly': return { icon: 'bi-calendar-event', label: 'Calendly' };
                 default: return { icon: 'bi-question-circle', label: 'Unknown' };
             }

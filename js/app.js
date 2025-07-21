@@ -211,10 +211,10 @@ class AirtableService {
             // Map reservation type - use reservationType parameter for the Airtable field
             switch(reservationType) {
                 case 'walk-in':
-                    airtableReservationType = 'Floor Plan';
+                    airtableReservationType = 'Walk-in';
                     break;
                 case 'phone-call':
-                    airtableReservationType = 'Phone call';
+                    airtableReservationType = 'Voice Agent';
                     break;
                 case 'calendly':
                     airtableReservationType = 'Calendly';
