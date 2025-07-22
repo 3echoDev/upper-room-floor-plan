@@ -135,6 +135,22 @@ async function fetchAndUpdateReservations() {
         const airtableReservations = await window.airtableService.getReservations();
         console.log('Fetched Airtable reservations:', airtableReservations);
         
+        // **DEBUG: Log environment and cancelled reservation analysis**
+        const cancelledReservations = airtableReservations.filter(res => 
+            res.status && (res.status.toLowerCase() === 'cancelled' || res.status.toLowerCase() === 'canceled')
+        );
+        console.log('🔍 ENVIRONMENT DEBUG:', {
+            hostname: window.location.hostname,
+            totalReservations: airtableReservations.length,
+            cancelledCount: cancelledReservations.length,
+            cancelledReservations: cancelledReservations.map(res => ({
+                id: res.id,
+                customerName: res.customerName,
+                status: res.status,
+                statusType: typeof res.status
+            }))
+        });
+        
         // **DEBUG: Log all phone call reservations from Airtable**
         console.log('=== DEBUGGING PHONE CALL RESERVATIONS ===');
         const phoneCallReservations = airtableReservations.filter(res => 
@@ -153,6 +169,19 @@ async function fetchAndUpdateReservations() {
             if (!table) {
                 console.warn('Table not found for reservation:', airtableRes.tableId);
                 return;
+            }
+            
+            // **DEBUG: Log status values for debugging environment differences**
+            if (airtableRes.status && airtableRes.status.toLowerCase().includes('cancel')) {
+                console.log('🔍 DEBUGGING: Found cancelled reservation:', {
+                    id: airtableRes.id,
+                    customerName: airtableRes.customerName,
+                    status: airtableRes.status,
+                    statusType: typeof airtableRes.status,
+                    statusLower: airtableRes.status.toLowerCase(),
+                    tableId: airtableRes.tableId,
+                    environment: window.location.hostname
+                });
             }
             
             // **ORIGINAL LOGIC: Only process reservations for today (for display only)**
@@ -184,13 +213,17 @@ async function fetchAndUpdateReservations() {
                 return; // Skip for display, but data remains in Airtable
             }
             
-            // **NEW: Filter out cancelled reservations from floor plan display**
-            if (airtableRes.status === 'Cancelled') {
+            // **NEW: Filter out cancelled reservations from floor plan display (case-insensitive, multiple spellings)**
+            if (airtableRes.status && 
+                (airtableRes.status.toLowerCase() === 'cancelled' || 
+                 airtableRes.status.toLowerCase() === 'canceled')) {
                 console.log('🚫 Skipping cancelled reservation from display:', {
                     id: airtableRes.id,
                     customerName: airtableRes.customerName,
                     status: airtableRes.status,
-                    tableId: airtableRes.tableId
+                    statusLower: airtableRes.status.toLowerCase(),
+                    tableId: airtableRes.tableId,
+                    environment: window.location.hostname
                 });
                 return; // Skip cancelled reservations from display, but they remain in Airtable
             }
@@ -445,6 +478,9 @@ function getStatusFromAirtableStatus(airtableStatus) {
         case 'no show':
         case 'no-show':
             return 'no-show';
+        case 'cancelled':
+        case 'canceled':
+            return 'cancelled'; // Handle both spellings of cancelled
         case 'phone call':
             return 'reserved'; // Phone calls always default to reserved status
         case 'floor plan':
