@@ -739,11 +739,6 @@ window.addEventListener('load', function() {
                 throw new Error('Airtable service not available');
             }
 
-            // If status is changed to no-show, show immediate alert
-            if (newStatus === 'no-show') {
-                alert('Processing... Marking reservation as no-show and deleting the record.');
-            }
-
             // Update the reservation status in Airtable
             await window.airtableService.updateReservationStatus(reservationId, newStatus);
 
@@ -752,28 +747,16 @@ window.addEventListener('load', function() {
             if (table) {
                 const reservation = table.reservations.find(r => r.id === reservationId);
                 if (reservation) {
-                    // If status is 'no-show', remove it from local data. Otherwise, update status.
-                    if (newStatus === 'no-show') {
-                        const customerInfo = reservation.customerName ? ` for ${reservation.customerName}` : '';
-                        const timeInfo = new Date(reservation.startTime).toLocaleTimeString('en-US', { 
-                            hour: 'numeric', 
-                            minute: '2-digit', 
-                            hour12: true 
-                        });
-                        // Show completion alert
-                        alert(`✅ Completed: Reservation for Table ${tableId}${customerInfo} at ${timeInfo} has been marked as no-show and deleted.`);
-                        
-                        // Remove the reservation from the local array
-                        table.reservations = table.reservations.filter(r => r.id !== reservationId);
-                    } else {
-                        reservation.status = newStatus;
-                    }
+                    reservation.status = newStatus;
                 }
             }
 
             // Refresh the UI
             initialize();
             updateFloorPlanTableStatuses();
+
+            // Show success message
+            showSuccessMessage(`Reservation status updated to ${newStatus}`);
 
             console.log(`Updated reservation ${reservationId} status to ${newStatus}`);
         } catch (error) {

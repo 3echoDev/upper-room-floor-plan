@@ -98,6 +98,65 @@ class CalendlyService {
         }
     }
 
+    // NEW: Get future scheduled events (next 60 days)
+    async getFutureScheduledEvents() {
+        if (!this.isConfigured) {
+            console.log('Calendly not configured, skipping future event fetch');
+            return [];
+        }
+
+        try {
+            // Get user URI if not cached
+            if (!this.userUri) {
+                console.log('Getting user URI...');
+                await this.getCurrentUser();
+            }
+
+            // Get future date range (tomorrow to 60 days from now)
+            const now = new Date();
+            const tomorrow = new Date(now);
+            tomorrow.setDate(now.getDate() + 1);
+            tomorrow.setHours(0, 0, 0, 0);
+            
+            const endDate = new Date(now);
+            endDate.setDate(now.getDate() + 60);
+            endDate.setHours(23, 59, 59, 999);
+
+            // Build query parameters with the correct user URI
+            const queryParams = new URLSearchParams({
+                user: this.userUri, // Use the full URI, not just UUID
+                min_start_time: tomorrow.toISOString(),
+                max_start_time: endDate.toISOString(),
+                status: 'active'
+            });
+
+            const url = `${this.baseUrl}/scheduled_events?${queryParams}`;
+            console.log('Fetching future events from URL:', url);
+
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${this.accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('Future events response status:', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Future events API Error:', response.status, errorText);
+                throw new Error(`HTTP error! status: ${response.status}, details: ${errorText}`);
+            }
+
+            const data = await response.json();
+            console.log('Fetched future events:', data);
+            return data.collection || [];
+        } catch (error) {
+            console.error('Error fetching future Calendly events:', error);
+            return []; // Return empty array instead of throwing
+        }
+    }
+
     // Get invitees for a specific event
     async getEventInvitees(eventUri) {
         if (!this.isConfigured) {
@@ -165,6 +224,100 @@ class CalendlyService {
         }
     }
 
+    // NEW: Get enhanced future events with invitee information
+    async getEnhancedFutureEvents() {
+        if (!this.isConfigured) {
+            console.log('Calendly not configured, returning empty future events array');
+            return [];
+        }
+
+        try {
+            const events = await this.getFutureScheduledEvents();
+            const enhancedEvents = [];
+
+            for (const event of events) {
+                try {
+                    const invitees = await this.getEventInvitees(event.uri);
+                    enhancedEvents.push({
+                        ...event,
+                        invitees: invitees
+                    });
+                } catch (inviteeError) {
+                    console.warn('Error fetching invitees for future event:', event.uri, inviteeError);
+                    // Include event without invitees rather than failing completely
+                    enhancedEvents.push({
+                        ...event,
+                        invitees: []
+                    });
+                }
+            }
+
+            return enhancedEvents;
+        } catch (error) {
+            console.error('Error getting enhanced future events:', error);
+            return []; // Return empty array instead of throwing
+        }
+    }
+
+    // NEW: Get cancelled events from Calendly
+    async getCancelledEvents() {
+        if (!this.isConfigured) {
+            console.log('Calendly not configured, skipping cancelled event fetch');
+            return [];
+        }
+
+        try {
+            // Get user URI if not cached
+            if (!this.userUri) {
+                console.log('Getting user URI for cancelled events...');
+                await this.getCurrentUser();
+            }
+
+            // Get date range for last 30 days to capture recent cancellations
+            const now = new Date();
+            const startDate = new Date(now);
+            startDate.setDate(now.getDate() - 30);
+            startDate.setHours(0, 0, 0, 0);
+            
+            const endDate = new Date(now);
+            endDate.setDate(now.getDate() + 60); // Also check future cancellations
+            endDate.setHours(23, 59, 59, 999);
+
+            // Build query parameters for cancelled events
+            const queryParams = new URLSearchParams({
+                user: this.userUri,
+                min_start_time: startDate.toISOString(),
+                max_start_time: endDate.toISOString(),
+                status: 'canceled' // Note: Calendly uses 'canceled' not 'cancelled'
+            });
+
+            const url = `${this.baseUrl}/scheduled_events?${queryParams}`;
+            console.log('Fetching cancelled events from URL:', url);
+
+            const response = await fetch(url, {
+                headers: {
+                    'Authorization': `Bearer ${this.accessToken}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log('Cancelled events response status:', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Cancelled events API Error:', response.status, errorText);
+                throw new Error(`HTTP error! status: ${response.status}, details: ${errorText}`);
+            }
+
+            const data = await response.json();
+            console.log('Fetched cancelled events:', data);
+            return data.collection || [];
+        } catch (error) {
+            console.error('Error fetching cancelled Calendly events:', error);
+            return [];
+        }
+    }
+
     // Check if an event has already been assigned a table using multiple identifiers
     async isEventAlreadyAssigned(eventId, customerName, phoneNumber, startTime) {
         try {
@@ -216,6 +369,11 @@ class CalendlyService {
                     try {
                         const reservations = await window.airtableService.getReservations();
                         const duplicateReservation = reservations.find(res => {
+                            // First check exact Reservation_ID match
+                            if (res.Reservation_ID === `C5-${eventTime.getFullYear()}-${String(eventTime.getMonth() + 1).padStart(2, '0')}-${String(eventTime.getDate()).padStart(2, '0')}-${String(eventTime.getHours()).padStart(2, '0')}:${String(eventTime.getMinutes()).padStart(2, '0')}pm`) {
+                                return true;
+                            }
+
                             if (res.reservationType && res.reservationType.toLowerCase() === 'calendly') {
                                 const resTime = new Date(res.time);
                                 const timeDiff = Math.abs(eventTime - resTime);
@@ -390,7 +548,7 @@ async function testCalendlyConnection() {
             console.log('Sample event details:', events[0]);
         }
         
-        return true;
+        return true; // Indicate success
     } catch (error) {
         console.error('❌ Calendly connection test failed:', error);
         return false;
@@ -767,6 +925,344 @@ async function updateCalendlyBookings() {
     }
 }
 
+// NEW: Calculate duration for future booking based on time (before 5:30pm = 60 min, after 5:30pm = 90 min)
+function calculateDurationForFutureBooking(startTime) {
+    const eventDate = new Date(startTime);
+    const eventHour = eventDate.getHours();
+    const eventMinute = eventDate.getMinutes();
+    
+    // Convert to minutes since midnight
+    const eventTimeInMinutes = eventHour * 60 + eventMinute;
+    const cutoffTime = 17 * 60 + 30; // 5:30 PM in minutes
+    
+    if (eventTimeInMinutes < cutoffTime) {
+        return 60; // 60 minutes before 5:30 PM
+    } else {
+        return 90; // 90 minutes after 5:30 PM
+    }
+}
+
+// NEW: Normalize future Calendly booking with proper duration
+function normalizeFutureCalendlyBooking(booking) {
+    const duration = calculateDurationForFutureBooking(booking.startTime);
+    const endTime = new Date(booking.startTime.getTime() + (duration * 60 * 1000));
+    
+    return {
+        id: `calendly_future_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        customerName: booking.customerName,
+        phoneNumber: booking.phoneNumber,
+        pax: booking.pax,
+        startTime: booking.startTime,
+        endTime: endTime,
+        duration: duration,
+        status: 'confirmed',
+        source: 'calendly',
+        systemNotes: 'Automatically assigned from future Calendly booking',
+        customerNotes: booking.specialRequest || '',
+        priority: 'high',
+        eventId: booking.eventId
+    };
+}
+
+// NEW: Process future Calendly bookings (no UI display, only backend processing)
+async function processFutureCalendlyBookings() {
+    if (!calendlyService.isReady()) {
+        console.log('Calendly not configured, skipping future booking processing');
+        return;
+    }
+
+    try {
+        console.log('Processing future Calendly bookings...');
+        
+        // IMPORTANT: Load existing assignments first - this is what prevents duplicates
+        await calendlyService.loadExistingAssignments();
+        
+        const futureEvents = await calendlyService.getEnhancedFutureEvents();
+        
+        if (futureEvents.length === 0) {
+            console.log('No future Calendly bookings found.');
+            return;
+        }
+        
+        console.log(`Found ${futureEvents.length} future Calendly events to process.`);
+        const futureBookingsForAssignment = [];
+
+        for (const event of futureEvents) {
+            try {
+                // Check if this event has already been assigned
+                const eventId = event.uri;
+                const customerName = event.invitees?.[0]?.name || 'Calendly Booking';
+                const phoneNumber = event.invitees?.[0]?.questions_and_answers?.find(qa => 
+                    qa.question.toLowerCase().includes('phone'))?.answer || null;
+                
+                // Use the same duplicate check as today's bookings
+                const isAlreadyAssigned = await calendlyService.isEventAlreadyAssigned(
+                    eventId, 
+                    customerName,
+                    phoneNumber,
+                    event.start_time
+                );
+
+                if (isAlreadyAssigned) {
+                    console.log(`Skipping future booking - already assigned: ${customerName}`);
+                    continue;
+                }
+
+                // Get invitee details
+                let paxCount = 2; // Default pax count
+                let specialRequest = null;
+                
+                if (event.invitees && event.invitees.length > 0) {
+                    for (const invitee of event.invitees) {
+                        // Extract form responses
+                        if (invitee.questions_and_answers) {
+                            for (const qa of invitee.questions_and_answers) {
+                                const question = qa.question.toLowerCase();
+                                const answer = qa.answer || 'N/A';
+                                
+                                if (question.includes('pax') || question.includes('guest') || question.includes('people')) {
+                                    const extractedPax = parseInt(answer);
+                                    if (!isNaN(extractedPax) && extractedPax > 0) {
+                                        paxCount = extractedPax;
+                                    }
+                                } else if (question.includes('special') || question.includes('request') || question.includes('note')) {
+                                    specialRequest = answer !== 'N/A' ? answer : null;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Add to queue for assignment
+                const bookingForAssignment = {
+                    eventId: eventId,
+                    startTime: new Date(event.start_time),
+                    endTime: new Date(event.end_time),
+                    pax: paxCount,
+                    customerName: customerName,
+                    phoneNumber: phoneNumber,
+                    specialRequest: specialRequest
+                };
+                
+                futureBookingsForAssignment.push(bookingForAssignment);
+                console.log(`Future booking queued for assignment: ${customerName}`);
+            } catch (eventError) {
+                console.error('Error processing individual future event:', eventError);
+                // Continue processing other future events
+            }
+        }
+
+        // Automatically assign unassigned future bookings with priority rules
+        if (futureBookingsForAssignment.length > 0) {
+            console.log(`Found ${futureBookingsForAssignment.length} unassigned future Calendly bookings. Auto-assigning...`);
+            
+            try {
+                // Process unassigned future bookings with proper duration calculation
+                const normalizedFutureBookings = futureBookingsForAssignment.map(booking => normalizeFutureCalendlyBooking(booking));
+                const futureAssignmentResults = await processCalendlyBookings(normalizedFutureBookings);
+                
+                // Mark successfully assigned future events
+                futureAssignmentResults.successful.forEach(result => {
+                    // IMPORTANT: Mark as assigned in the service - this prevents duplicates on refresh
+                    calendlyService.markEventAsAssigned(
+                        result.booking.eventId, 
+                        result.booking.customerName, 
+                        result.booking.phoneNumber, 
+                        result.booking.startTime
+                    );
+                });
+                
+                console.log(`Successfully assigned ${futureAssignmentResults.summary.assigned} future Calendly booking(s)`);
+                
+                // Update reservations if assignments were made (NO UI refresh needed for future bookings)
+                if (futureAssignmentResults.summary.assigned > 0) {
+                    updateReservationCount();
+                }
+                
+                // Log failed future assignments for debugging
+                if (futureAssignmentResults.summary.failed > 0) {
+                    console.warn(`Failed to assign ${futureAssignmentResults.summary.failed} future booking(s)`);
+                }
+                
+                return futureAssignmentResults;
+            } catch (futureAssignmentError) {
+                console.error('Error during future automatic table assignment:', futureAssignmentError);
+            }
+        } else {
+            console.log('All future Calendly bookings are already assigned.');
+        }
+    } catch (error) {
+        console.error('Error processing future Calendly bookings:', error);
+    }
+}
+
+// NEW: Process and save cancelled Calendly bookings to Airtable
+async function processCancelledCalendlyBookings() {
+    if (!calendlyService.isReady()) {
+        console.log('Calendly not configured, skipping cancelled booking processing');
+        return;
+    }
+
+    if (!window.airtableService) {
+        console.log('Airtable not available, skipping cancelled booking save');
+        return;
+    }
+
+    try {
+        console.log('Processing cancelled Calendly bookings...');
+        
+        const cancelledEvents = await calendlyService.getCancelledEvents();
+        
+        if (cancelledEvents.length === 0) {
+            console.log('No cancelled Calendly bookings found.');
+            return;
+        }
+        
+        console.log(`Found ${cancelledEvents.length} cancelled Calendly events to process.`);
+        
+        for (const event of cancelledEvents) {
+            try {
+                // Debug: Log the full event object to see available fields
+                console.log('Processing cancelled event:', event);
+                
+                // Extract cancellation reason from event object
+                let cancellationReason = null;
+                let cancelledBy = null;
+                
+                // Check various possible fields for cancellation information
+                if (event.cancellation && event.cancellation.reason) {
+                    cancellationReason = event.cancellation.reason;
+                    cancelledBy = event.cancellation.canceled_by;
+                } else if (event.cancellation_reason) {
+                    cancellationReason = event.cancellation_reason;
+                } else if (event.cancel_reason) {
+                    cancellationReason = event.cancel_reason;
+                } else if (event.reason) {
+                    cancellationReason = event.reason;
+                }
+                
+                // Also check for cancellation details in event object itself
+                if (event.canceled_by) {
+                    cancelledBy = event.canceled_by;
+                }
+                
+                console.log('Extracted cancellation reason:', cancellationReason);
+                console.log('Cancelled by:', cancelledBy);
+                
+                // Get invitee details
+                let customerName = 'Calendly Booking';
+                let phoneNumber = null;
+                let paxCount = 2;
+                let specialRequest = null;
+                
+                const invitees = await calendlyService.getEventInvitees(event.uri);
+                
+                if (invitees && invitees.length > 0) {
+                    const invitee = invitees[0];
+                    customerName = invitee.name || customerName;
+                    
+                    if (invitee.questions_and_answers) {
+                        for (const qa of invitee.questions_and_answers) {
+                            const question = qa.question.toLowerCase();
+                            const answer = qa.answer || '';
+                            
+                            if (question.includes('phone') || question.includes('number')) {
+                                phoneNumber = answer;
+                            } else if (question.includes('pax') || question.includes('guest') || question.includes('people')) {
+                                const extractedPax = parseInt(answer);
+                                if (!isNaN(extractedPax) && extractedPax > 0) {
+                                    paxCount = extractedPax;
+                                }
+                            } else if (question.includes('special') || question.includes('request') || question.includes('note')) {
+                                specialRequest = answer;
+                            }
+                        }
+                    }
+                }
+                
+                // Check if this cancelled event already exists in Airtable
+                const existingReservations = await window.airtableService.getReservations();
+                const eventTime = new Date(event.start_time);
+                
+                const alreadyExists = existingReservations.some(res => {
+                    if (res.reservationType && res.reservationType.toLowerCase() === 'calendly') {
+                        const resTime = new Date(res.time);
+                        const timeDiff = Math.abs(eventTime - resTime);
+                        
+                        // Check for same customer and similar time (within 5 minutes)
+                        return (res.customerName === customerName && timeDiff < 300000) ||
+                               (phoneNumber && res.phoneNumber === phoneNumber && timeDiff < 300000);
+                    }
+                    return false;
+                });
+                
+                if (alreadyExists) {
+                    console.log(`Cancelled event already exists in Airtable: ${customerName}`);
+                    continue;
+                }
+                
+                // Create reservation record for cancelled event using same pattern as existing Calendly bookings
+                const fields = {
+                    "Table": "N/A", // No table for cancelled bookings
+                    "Reservation Type": "Calendly",
+                    "Status": "Cancelled", // Set status as Cancelled
+                    "Pax": paxCount.toString(),
+                    "DateandTime": event.start_time,
+                    "Duration": Math.round((new Date(event.end_time) - new Date(event.start_time)) / 60000).toString()
+                };
+
+                // Add customer name if available
+                if (customerName) {
+                    fields["Name"] = customerName;
+                }
+                
+                // Add phone number if available
+                if (phoneNumber) {
+                    fields["PH Number"] = phoneNumber;
+                }
+                
+                // Add cancellation reason to Customer Notes (priority over special request)
+                let customerNotes = "";
+                
+                if (cancellationReason) {
+                    customerNotes = cancellationReason;
+                    // Add who cancelled if available
+                    if (cancelledBy) {
+                        customerNotes = `Cancelled by ${cancelledBy}: ${cancellationReason}`;
+                    }
+                } else if (specialRequest) {
+                    customerNotes = `Original request: ${specialRequest}`;
+                } else {
+                    customerNotes = "No cancellation reason provided";
+                }
+                
+                fields["Customer Notes"] = customerNotes;
+                
+                // Add system notes
+                fields["System Notes"] = `Cancelled Calendly booking - Event URI: ${event.uri}`;
+
+                console.log('Saving cancelled booking to Airtable with fields:', fields);
+
+                // Save to Airtable using same method as existing Calendly bookings
+                const result = await window.airtableService.base('tbl9dDLnVa5oLEnuq').create([
+                    { fields }
+                ]);
+                
+                console.log(`✅ Saved cancelled Calendly booking to Airtable: ${customerName} (ID: ${result[0].id})`);
+                
+            } catch (eventError) {
+                console.error('Error processing cancelled event:', eventError);
+                // Continue processing other events
+            }
+        }
+        
+        console.log('Finished processing cancelled Calendly bookings');
+        
+    } catch (error) {
+        console.error('Error processing cancelled Calendly bookings:', error);
+    }
+}
+
 // Update Calendly bookings on page load and periodically
 window.addEventListener('load', async function() {
     console.log('Page loaded, checking Calendly configuration...');
@@ -806,9 +1302,22 @@ window.addEventListener('load', async function() {
             
         updateCalendlyBookings();
             
+            // NEW: Process future Calendly bookings
+            processFutureCalendlyBookings();
+            
+            // NEW: Process cancelled Calendly bookings
+            processCancelledCalendlyBookings();
+            
             // Update every 5 minutes for real-time assignment
         setInterval(updateCalendlyBookings, 300000);
-            console.log('Calendly integration initialized successfully - Auto-assignment enabled');
+            
+            // NEW: Process future bookings every 30 minutes
+            setInterval(processFutureCalendlyBookings, 1800000);
+            
+            // NEW: Process cancelled bookings every 15 minutes
+            setInterval(processCancelledCalendlyBookings, 900000);
+            
+            console.log('Calendly integration initialized successfully - Auto-assignment enabled for today and future bookings');
     } else {
         console.error('Failed to initialize Calendly integration');
             const bookingsContainer = document.getElementById('calendly-bookings');

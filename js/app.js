@@ -45,12 +45,6 @@ class AirtableService {
         try {
             console.log('Updating reservation status:', { recordId, status });
             
-            // If status is available or no-show, delete the record
-            if (status === 'available' || status === 'no-show') {
-                console.log(`Status is ${status}, deleting reservation...`);
-                return await this.deleteReservation(recordId);
-            }
-            
             // Map the new status system to Airtable values
             let airtableStatus;
             switch(status) {
@@ -68,6 +62,9 @@ class AirtableService {
                     break;
                 case 'walk-in':
                     airtableStatus = 'Walk in';
+                    break;
+                case 'no-show':
+                    airtableStatus = 'No Show';
                     break;
                 default:
                     airtableStatus = 'Reserved'; // Default fallback

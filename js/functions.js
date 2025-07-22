@@ -1180,52 +1180,27 @@ window.updateReservationStatus = async function(tableId, reservationId, newStatu
     const oldStatus = reservation.status || 'reserved';
     
     try {
-        // If status is changed to no-show, delete the reservation
+        // For no-show, just update the status
         if (newStatus === 'no-show') {
-            // Show immediate alert to inform user
-            alert('Processing... Marking reservation as no-show and deleting the record.');
+            console.log('Marking reservation as no-show:', reservationId);
             
-            console.log('Reservation marked as no-show, deleting reservation:', reservationId);
-            
-            // Get reservation details for the alert message
-            const customerInfo = reservation.customerName ? ` for ${reservation.customerName}` : '';
-            const timeInfo = new Date(reservation.startTime).toLocaleTimeString('en-US', { 
-                hour: 'numeric', 
-                minute: '2-digit', 
-                hour12: true 
-            });
-            
-            // Delete from Airtable
+            // Update status in Airtable
             if (window.airtableService) {
-                await window.airtableService.deleteReservation(reservationId);
-                console.log('Successfully deleted no-show reservation from Airtable');
+                await window.airtableService.updateReservationStatus(reservationId, newStatus);
+                console.log('Successfully updated reservation to no-show in Airtable');
             }
             
-            // Remove from local table state
-            table.reservations = table.reservations.filter(r => r.id !== reservationId);
+            // Update local status
+            reservation.status = newStatus;
             
-            // Clear Airtable cache to ensure fresh data on next load
-            if (window.airtableService) {
-                window.airtableService.cachedReservations = [];
-                window.airtableService.lastFetchTime = null;
-            }
-            
-            // Update UI immediately from local data
+            // Update UI
             initialize();
-            
-            // Update reservation count
-            window.updateReservationCount();
-            
-            // Update floor plan indicators
             updateFloorPlanTableStatuses();
             
             // Show success message
-            showSuccessMessage(`Reservation marked as no-show and removed`);
+            showSuccessMessage(`Reservation marked as no-show`);
             
-            // Show completion alert with reservation details
-            alert(`✅ Completed: Reservation for Table ${tableId}${customerInfo} at ${timeInfo} has been marked as no-show and deleted.`);
-            
-            console.log('No-show reservation processed successfully:', reservationId);
+            console.log('No-show status updated successfully:', reservationId);
             
             return;
         }
