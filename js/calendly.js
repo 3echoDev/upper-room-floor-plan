@@ -897,6 +897,14 @@ async function updateCalendlyBookings() {
             console.log('All Calendly bookings are already assigned to tables.');
         }
 
+        // NEW: Also process cancelled bookings whenever we refresh the display
+        console.log('🔄 Processing cancelled Calendly bookings...');
+        try {
+            await processCancelledCalendlyBookings();
+        } catch (cancelError) {
+            console.error('Error processing cancelled bookings during refresh:', cancelError);
+        }
+
     } catch (error) {
         console.error('Error updating Calendly bookings:', error);
         const bookingsContainer = document.getElementById('calendly-bookings');
@@ -1109,16 +1117,19 @@ async function processCancelledCalendlyBookings() {
     }
 
     try {
-        console.log('Processing cancelled Calendly bookings...');
+        console.log('🚫 Processing cancelled Calendly bookings...');
         
         const cancelledEvents = await calendlyService.getCancelledEvents();
         
         if (cancelledEvents.length === 0) {
-            console.log('No cancelled Calendly bookings found.');
+            console.log('✅ No cancelled Calendly bookings found (this is normal).');
             return;
         }
         
-        console.log(`Found ${cancelledEvents.length} cancelled Calendly events to process.`);
+        console.log(`📋 Found ${cancelledEvents.length} cancelled Calendly events to process.`);
+        
+        let processedCount = 0;
+        let skippedCount = 0;
         
         for (const event of cancelledEvents) {
             try {
@@ -1180,12 +1191,12 @@ async function processCancelledCalendlyBookings() {
                     }
                 }
                 
-                // Check if this cancelled event already exists in Airtable
+                // Find the existing "Reserved" record in Airtable that matches this cancelled event
                 const existingReservations = await window.airtableService.getReservations();
                 const eventTime = new Date(event.start_time);
                 
-                const alreadyExists = existingReservations.some(res => {
-                    if (res.reservationType && res.reservationType.toLowerCase() === 'calendly') {
+                const existingReservation = existingReservations.find(res => {
+                    if (res.reservationType && res.reservationType.toLowerCase() === 'calendly' && res.status !== 'Cancelled') {
                         const resTime = new Date(res.time);
                         const timeDiff = Math.abs(eventTime - resTime);
                         
@@ -1196,67 +1207,73 @@ async function processCancelledCalendlyBookings() {
                     return false;
                 });
                 
-                if (alreadyExists) {
-                    console.log(`Cancelled event already exists in Airtable: ${customerName}`);
+                if (!existingReservation) {
+                    console.log(`⚠️ No existing reservation found for cancelled event: ${customerName}`);
+                    skippedCount++;
                     continue;
                 }
                 
-                // Create reservation record for cancelled event using same pattern as existing Calendly bookings
-                const fields = {
-                    "Table": "N/A", // No table for cancelled bookings
-                    "Reservation Type": "Calendly",
-                    "Status": "Cancelled", // Set status as Cancelled
-                    "Pax": paxCount.toString(),
-                    "DateandTime": event.start_time,
-                    "Duration": Math.round((new Date(event.end_time) - new Date(event.start_time)) / 60000).toString()
+                if (existingReservation.status === 'Cancelled') {
+                    console.log(`⏭️ Reservation already marked as cancelled: ${customerName}`);
+                    skippedCount++;
+                    continue;
+                }
+                
+                // UPDATE the existing reservation status from "Reserved" to "Cancelled"
+                const updateFields = {
+                    "Status": "Cancelled"
                 };
-
-                // Add customer name if available
-                if (customerName) {
-                    fields["Name"] = customerName;
-                }
                 
-                // Add phone number if available
-                if (phoneNumber) {
-                    fields["PH Number"] = phoneNumber;
-                }
-                
-                // Add cancellation reason to Customer Notes (priority over special request)
-                let customerNotes = "";
+                // Add cancellation reason to Customer Notes (append to existing notes)
+                let existingNotes = existingReservation.customerNotes || "";
+                let cancellationNote = "";
                 
                 if (cancellationReason) {
-                    customerNotes = cancellationReason;
+                    cancellationNote = cancellationReason;
                     // Add who cancelled if available
                     if (cancelledBy) {
-                        customerNotes = `Cancelled by ${cancelledBy}: ${cancellationReason}`;
+                        cancellationNote = `Cancelled by ${cancelledBy}: ${cancellationReason}`;
                     }
-                } else if (specialRequest) {
-                    customerNotes = `Original request: ${specialRequest}`;
                 } else {
-                    customerNotes = "No cancellation reason provided";
+                    cancellationNote = "Cancelled via Calendly";
                 }
                 
-                fields["Customer Notes"] = customerNotes;
+                // Append cancellation reason to existing notes
+                if (existingNotes) {
+                    updateFields["Customer Notes"] = `${existingNotes}\n\n[CANCELLED] ${cancellationNote}`;
+                } else {
+                    updateFields["Customer Notes"] = `[CANCELLED] ${cancellationNote}`;
+                }
                 
-                // Add system notes
-                fields["System Notes"] = `Cancelled Calendly booking - Event URI: ${event.uri}`;
+                // Update system notes to include cancellation info
+                let existingSystemNotes = existingReservation.systemNotes || "";
+                if (existingSystemNotes) {
+                    updateFields["System Notes"] = `${existingSystemNotes}\n\nCancelled via Calendly - Event URI: ${event.uri}`;
+                } else {
+                    updateFields["System Notes"] = `Cancelled Calendly booking - Event URI: ${event.uri}`;
+                }
 
-                console.log('Saving cancelled booking to Airtable with fields:', fields);
+                console.log(`🔄 Updating existing reservation to cancelled status: ${customerName} (Record ID: ${existingReservation.id})`);
 
-                // Save to Airtable using same method as existing Calendly bookings
-                const result = await window.airtableService.base('tbl9dDLnVa5oLEnuq').create([
-                    { fields }
+                // Update the existing record in Airtable
+                const result = await window.airtableService.base('tbl9dDLnVa5oLEnuq').update([
+                    {
+                        id: existingReservation.id,
+                        fields: updateFields
+                    }
                 ]);
                 
-                console.log(`✅ Saved cancelled Calendly booking to Airtable: ${customerName} (ID: ${result[0].id})`);
+                console.log(`✅ Updated reservation status to Cancelled: ${customerName} (ID: ${result[0].id})`);
+                processedCount++;
                 
             } catch (eventError) {
-                console.error('Error processing cancelled event:', eventError);
+                console.error('❌ Error processing cancelled event:', eventError);
                 // Continue processing other events
             }
         }
         
-        console.log('Finished processing cancelled Calendly bookings');
+        // Show summary of processing results
+        console.log(`📊 Cancelled booking processing complete: ${processedCount} saved, ${skippedCount} skipped (already existed), ${cancelledEvents.length - processedCount - skippedCount} failed`);
         
     } catch (error) {
         console.error('Error processing cancelled Calendly bookings:', error);

@@ -184,6 +184,17 @@ async function fetchAndUpdateReservations() {
                 return; // Skip for display, but data remains in Airtable
             }
             
+            // **NEW: Filter out cancelled reservations from floor plan display**
+            if (airtableRes.status === 'Cancelled') {
+                console.log('🚫 Skipping cancelled reservation from display:', {
+                    id: airtableRes.id,
+                    customerName: airtableRes.customerName,
+                    status: airtableRes.status,
+                    tableId: airtableRes.tableId
+                });
+                return; // Skip cancelled reservations from display, but they remain in Airtable
+            }
+            
             // **DEBUG: Log phone call reservations being displayed**
             if (airtableRes.reservationType && airtableRes.reservationType.toLowerCase().includes('phone')) {
                 console.log('✅ PHONE CALL reservation being displayed (today):', {
