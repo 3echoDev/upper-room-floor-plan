@@ -456,6 +456,7 @@ function getSourceFromAirtableType(airtableType) {
         case 'calendly':
             return 'calendly';
         case 'phone call':
+        case 'voice agent':
             return 'phone-call';
         case 'floor plan':
         case 'walk in':  // Keep this for backward compatibility

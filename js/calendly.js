@@ -333,9 +333,25 @@ class CalendlyService {
                 console.log(`Unique key ${uniqueKey} already tracked as assigned`);
                 return true;
             }
+            
+            // **NEW: Check by time-based key for exact time matches**
+            const timeKey = this.createTimeKey(startTime);
+            if (timeKey && this.assignedEventIds.has(timeKey)) {
+                console.log(`Time key ${timeKey} already tracked as assigned`);
+                return true;
+            }
+            
+            // **NEW: Check for no-customer bookings at the same time**
+            if ((!customerName || customerName === 'Calendly Booking') && timeKey) {
+                const noCustomerKey = `calendly_no_customer_${timeKey}`;
+                if (this.assignedEventIds.has(noCustomerKey)) {
+                    console.log(`No-customer key ${noCustomerKey} already tracked as assigned`);
+                    return true;
+                }
+            }
 
-            // More robust check using customer details and time
-            if (customerName && startTime) {
+            // **ENHANCED: More robust check using customer details and time**
+            if (startTime) {
                 const eventTime = new Date(startTime);
                 
                 // Check local tables for matching reservations
@@ -345,17 +361,40 @@ class CalendlyService {
                             const resTime = new Date(reservation.startTime);
                             const timeDiff = Math.abs(eventTime - resTime);
                             
+                            // **NEW: Check for exact time match first (most reliable)**
+                            const exactTimeMatch = timeDiff < 60000; // Within 1 minute
+                            
                             // Check for same customer name and similar time (within 5 minutes)
-                            if (reservation.customerName === customerName && timeDiff < 300000) {
-                                console.log(`Found existing assignment for ${customerName} at similar time`);
-                                this.assignedEventIds.add(eventId);
-                                if (uniqueKey) this.assignedEventIds.add(uniqueKey);
-                                return true;
-                            }
+                            const sameCustomerSimilarTime = customerName && 
+                                reservation.customerName === customerName && 
+                                timeDiff < 300000;
                             
                             // Check for same phone number and similar time (within 5 minutes)
-                            if (phoneNumber && reservation.phoneNumber === phoneNumber && timeDiff < 300000) {
-                                console.log(`Found existing assignment for phone ${phoneNumber} at similar time`);
+                            const samePhoneSimilarTime = phoneNumber && 
+                                reservation.phoneNumber === phoneNumber && 
+                                timeDiff < 300000;
+                            
+                            // **NEW: Check for Calendly bookings without customer info at same time**
+                            const sameTimeNoCustomer = exactTimeMatch && 
+                                (!reservation.customerName || reservation.customerName === 'Calendly Booking') &&
+                                (!customerName || customerName === 'Calendly Booking');
+                            
+                            if (exactTimeMatch || sameCustomerSimilarTime || samePhoneSimilarTime || sameTimeNoCustomer) {
+                                console.log(`Found existing assignment for ${customerName || phoneNumber} at similar time`);
+                                console.log('Duplicate details:', {
+                                    existing: {
+                                        customerName: reservation.customerName,
+                                        phoneNumber: reservation.phoneNumber,
+                                        time: reservation.startTime,
+                                        tableId: reservation.tableId
+                                    },
+                                    new: {
+                                        customerName: customerName,
+                                        phoneNumber: phoneNumber,
+                                        time: startTime
+                                    },
+                                    timeDiff: timeDiff / 1000 + ' seconds'
+                                });
                                 this.assignedEventIds.add(eventId);
                                 if (uniqueKey) this.assignedEventIds.add(uniqueKey);
                                 return true;
@@ -420,6 +459,20 @@ class CalendlyService {
             this.assignedEventIds.add(uniqueKey);
             console.log(`Marked as assigned: ${eventId} and ${uniqueKey}`);
         }
+        
+        // **NEW: Also track time-based key for exact time matching**
+        const timeKey = this.createTimeKey(startTime);
+        if (timeKey) {
+            this.assignedEventIds.add(timeKey);
+            console.log(`Marked time as assigned: ${timeKey}`);
+        }
+        
+        // **NEW: Track no-customer bookings separately**
+        if ((!customerName || customerName === 'Calendly Booking') && timeKey) {
+            const noCustomerKey = `calendly_no_customer_${timeKey}`;
+            this.assignedEventIds.add(noCustomerKey);
+            console.log(`Marked no-customer booking as assigned: ${noCustomerKey}`);
+        }
     }
 
     // Load existing assignments from tables and Airtable to prevent duplicates
@@ -431,7 +484,9 @@ class CalendlyService {
             for (const table of tables) {
                 for (const reservation of table.reservations) {
                     if (reservation.source === 'calendly') {
-                        // Create a unique identifier using customer details + time
+                        // **ENHANCED: Create multiple unique identifiers for better tracking**
+                        
+                        // 1. Create unique identifier using customer details + time
                         const uniqueKey = this.createUniqueKey(
                             reservation.customerName, 
                             reservation.phoneNumber, 
@@ -441,6 +496,20 @@ class CalendlyService {
                         if (uniqueKey) {
                             this.assignedEventIds.add(uniqueKey);
                             console.log(`Tracked existing local assignment: ${uniqueKey}`);
+                        }
+                        
+                        // **NEW: 2. Create time-based identifier for exact time matches**
+                        const timeKey = this.createTimeKey(reservation.startTime);
+                        if (timeKey) {
+                            this.assignedEventIds.add(timeKey);
+                            console.log(`Tracked existing time-based assignment: ${timeKey}`);
+                        }
+                        
+                        // **NEW: 3. Create identifier for Calendly bookings without customer info**
+                        if (!reservation.customerName || reservation.customerName === 'Calendly Booking') {
+                            const noCustomerKey = `calendly_no_customer_${timeKey}`;
+                            this.assignedEventIds.add(noCustomerKey);
+                            console.log(`Tracked existing no-customer assignment: ${noCustomerKey}`);
                         }
                         
                         // Also track any event IDs from notes if available
@@ -458,7 +527,9 @@ class CalendlyService {
                 const reservations = await window.airtableService.getReservations();
                 reservations.forEach(res => {
                     if (res.reservationType && res.reservationType.toLowerCase() === 'calendly') {
-                        // Create unique identifier for Airtable reservations
+                        // **ENHANCED: Create multiple identifiers for Airtable reservations**
+                        
+                        // 1. Create unique identifier for Airtable reservations
                         const uniqueKey = this.createUniqueKey(
                             res.customerName, 
                             res.phoneNumber, 
@@ -468,6 +539,20 @@ class CalendlyService {
                         if (uniqueKey) {
                             this.assignedEventIds.add(uniqueKey);
                             console.log(`Tracked existing Airtable assignment: ${uniqueKey}`);
+                        }
+                        
+                        // **NEW: 2. Create time-based identifier for exact time matches**
+                        const timeKey = this.createTimeKey(res.time);
+                        if (timeKey) {
+                            this.assignedEventIds.add(timeKey);
+                            console.log(`Tracked existing Airtable time assignment: ${timeKey}`);
+                        }
+                        
+                        // **NEW: 3. Create identifier for Calendly bookings without customer info**
+                        if (!res.customerName || res.customerName === 'Calendly Booking') {
+                            const noCustomerKey = `calendly_no_customer_${timeKey}`;
+                            this.assignedEventIds.add(noCustomerKey);
+                            console.log(`Tracked existing Airtable no-customer assignment: ${noCustomerKey}`);
                         }
                         
                         // Also track event IDs from notes
@@ -503,6 +588,14 @@ class CalendlyService {
         }
         
         return null;
+    }
+    
+    // **NEW: Create a time-based key for exact time matching**
+    createTimeKey(startTime) {
+        if (!startTime) return null;
+        
+        const timeStr = new Date(startTime).toISOString().substring(0, 16); // YYYY-MM-DDTHH:MM
+        return `time_${timeStr}`;
     }
 }
 
@@ -1316,6 +1409,18 @@ window.addEventListener('load', async function() {
             
             // Load existing assignments first to prevent duplicates
             await calendlyService.loadExistingAssignments();
+            
+            // **NEW: Clean up any existing duplicate Calendly reservations**
+            if (window.cleanupDuplicateCalendlyReservations) {
+                try {
+                    const cleanupResult = await window.cleanupDuplicateCalendlyReservations();
+                    if (cleanupResult.success && cleanupResult.cleanedCount > 0) {
+                        console.log(`🧹 Cleaned up ${cleanupResult.cleanedCount} duplicate Calendly reservations`);
+                    }
+                } catch (cleanupError) {
+                    console.warn('Warning: Could not clean up duplicate reservations:', cleanupError);
+                }
+            }
             
         updateCalendlyBookings();
             

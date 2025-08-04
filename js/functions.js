@@ -21,8 +21,8 @@ function adjustTablePositionsForMobile() {
         a2Table.style.top = '580px';
     } else {
         // Reset to original positions for larger screens
-        a1Table.style.top = '670px';
-        a2Table.style.top = '670px';
+        a1Table.style.top = '830px';
+        a2Table.style.top = '830px';
     }
     
     // Adjust other mobile-specific UI elements
@@ -733,13 +733,38 @@ window.assignCalendlyBookingToTable = function(calendlyBooking) {
                 const resTime = new Date(reservation.startTime);
                 const timeDiff = Math.abs(bookingStart - resTime);
                 
-                // More specific duplicate detection
+                // **ENHANCED: More robust duplicate detection**
+                // Check for exact time match first (most reliable)
+                const exactTimeMatch = timeDiff < 60000; // Within 1 minute
+                
+                // Check for customer details match
                 const sameCustomer = customerName && reservation.customerName === customerName;
                 const samePhone = phoneNumber && reservation.phoneNumber === phoneNumber;
-                const sameTime = timeDiff < 300000; // Within 5 minutes
                 
-                if ((sameCustomer || samePhone) && sameTime) {
+                // Check for similar time (within 5 minutes) with customer details
+                const similarTimeWithCustomer = timeDiff < 300000 && (sameCustomer || samePhone);
+                
+                // **NEW: Check for Calendly bookings without customer info at same time**
+                const sameTimeNoCustomer = exactTimeMatch && 
+                    (!reservation.customerName || reservation.customerName === 'Calendly Booking') &&
+                    (!customerName || customerName === 'Calendly Booking');
+                
+                if (exactTimeMatch || similarTimeWithCustomer || sameTimeNoCustomer) {
                     console.log(`❌ DUPLICATE DETECTED in local data: ${customerName || phoneNumber} already assigned to table ${reservation.tableId}`);
+                    console.log('Duplicate details:', {
+                        existing: {
+                            customerName: reservation.customerName,
+                            phoneNumber: reservation.phoneNumber,
+                            time: reservation.startTime,
+                            tableId: reservation.tableId
+                        },
+                        new: {
+                            customerName: customerName,
+                            phoneNumber: phoneNumber,
+                            time: bookingStart.toISOString()
+                        },
+                        timeDiff: timeDiff / 1000 + ' seconds'
+                    });
                     return { 
                         success: false, 
                         error: `Customer ${customerName || phoneNumber} already has a reservation at ${bookingStart.toLocaleTimeString()} on table ${reservation.tableId}`,
@@ -756,8 +781,8 @@ window.assignCalendlyBookingToTable = function(calendlyBooking) {
     // Define priority rules based on pax count
     const getPriorityTables = (paxCount) => {
         const rules = {
-            1: ['C5'], // 1 pax: C5 only
-            2: ['C5'], // 2 pax: C5 only
+            1: ['C5', 'C7'], // 1 pax: C5 first, then C7
+            2: ['C5', 'C7'], // 2 pax: C5 first, then C7
             3: ['C3', 'L1', 'L2', 'B2', 'B1'], // 3 pax: C3 first, then loft tables, then B tables
             4: ['C3', 'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'B2', 'B1'], // 4 pax: C3 first, then all loft tables, then B tables
             5: ['D2'], // 5 pax: D2 only
@@ -925,7 +950,8 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                             "Status": "Reserved", // Map to proper Airtable status
                             "Pax": assignmentResult.reservation.pax.toString(),
                             "DateandTime": assignmentResult.reservation.startTime,
-                            "Duration": assignmentResult.reservation.duration.toString()
+                            "Duration": assignmentResult.reservation.duration.toString(),
+                            "Confirmation": false // Explicitly set to false to prevent auto-ticking
                         };
 
                         // Add customer name to the proper Name field
@@ -1160,6 +1186,92 @@ window.testCalendlyAssignmentSystem = async function() {
     } catch (error) {
         console.error('❌ Test failed:', error);
         return { success: false, error: error.message };
+    }
+};
+
+// **NEW: Function to clean up duplicate Calendly reservations**
+window.cleanupDuplicateCalendlyReservations = async function() {
+    console.log('🧹 Cleaning up duplicate Calendly reservations...');
+    
+    const duplicates = [];
+    const tablesToUpdate = new Set();
+    
+    // Check all tables for duplicate Calendly reservations
+    for (const table of tables) {
+        const calendlyReservations = table.reservations.filter(r => r.source === 'calendly');
+        
+        for (let i = 0; i < calendlyReservations.length; i++) {
+            for (let j = i + 1; j < calendlyReservations.length; j++) {
+                const res1 = calendlyReservations[i];
+                const res2 = calendlyReservations[j];
+                
+                const time1 = new Date(res1.startTime);
+                const time2 = new Date(res2.startTime);
+                const timeDiff = Math.abs(time1 - time2);
+                
+                // Check for duplicates based on time and customer info
+                const isDuplicate = timeDiff < 60000 || // Within 1 minute
+                    (timeDiff < 300000 && // Within 5 minutes
+                     ((res1.customerName === res2.customerName && res1.customerName) ||
+                      (res1.phoneNumber === res2.phoneNumber && res1.phoneNumber)));
+                
+                if (isDuplicate) {
+                    // Keep the one with more complete information
+                    const res1Complete = res1.customerName && res1.customerName !== 'Calendly Booking';
+                    const res2Complete = res2.customerName && res2.customerName !== 'Calendly Booking';
+                    
+                    const toRemove = res1Complete && !res2Complete ? res2 : 
+                                   !res1Complete && res2Complete ? res1 : 
+                                   res1; // Default to removing the first one
+                    
+                    duplicates.push({
+                        tableId: table.id,
+                        reservation: toRemove,
+                        reason: 'Duplicate Calendly reservation'
+                    });
+                    
+                    tablesToUpdate.add(table.id);
+                }
+            }
+        }
+    }
+    
+    if (duplicates.length === 0) {
+        console.log('✅ No duplicate Calendly reservations found');
+        return { success: true, message: 'No duplicates found' };
+    }
+    
+    console.log(`Found ${duplicates.length} duplicate Calendly reservations to clean up`);
+    
+    try {
+        // Remove duplicates from local tables
+        for (const duplicate of duplicates) {
+            const table = tables.find(t => t.id === duplicate.tableId);
+            if (table) {
+                table.reservations = table.reservations.filter(r => r.id !== duplicate.reservation.id);
+                console.log(`Removed duplicate from table ${duplicate.tableId}: ${duplicate.reservation.customerName || 'No name'}`);
+            }
+        }
+        
+        // Update UI
+        initialize();
+        updateReservationCount();
+        updateFloorPlanTableStatuses();
+        
+        console.log(`✅ Successfully cleaned up ${duplicates.length} duplicate Calendly reservations`);
+        
+        return {
+            success: true,
+            cleanedCount: duplicates.length,
+            message: `Cleaned up ${duplicates.length} duplicate Calendly reservations`
+        };
+        
+    } catch (error) {
+        console.error('❌ Error cleaning up duplicates:', error);
+        return {
+            success: false,
+            error: error.message
+        };
     }
 };
 
@@ -1856,7 +1968,7 @@ function updateFloorPlanScale() {
     // Use a small timeout to ensure the layout is stable before measuring
     setTimeout(() => {
         const INTRINSIC_WIDTH = 1050; // The floor plan's natural, internal width
-        const INTRINSIC_HEIGHT = 780; // The floor plan's natural, internal height
+        const INTRINSIC_HEIGHT = 900; // The floor plan's natural, internal height
 
         const style = getComputedStyle(container);
         const containerWidth = container.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);

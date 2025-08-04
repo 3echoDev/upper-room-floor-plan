@@ -11,7 +11,7 @@
 .floor-plan-wrapper {
     position: relative;
     width: 1050px;
-    height: 780px;
+    height: 900px;
     transform-origin: center;
     will-change: transform;
 }

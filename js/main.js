@@ -84,6 +84,7 @@ window.addEventListener('load', function() {
         { id: "C3", name: "C3", capacity: 4, type: "table" },
         { id: "C4", name: "C4", capacity: 2, type: "table" },
         { id: "C5", name: "C5", capacity: 2, type: "table" },
+        { id: "C7", name: "C7", capacity: 2, type: "table" },
         { id: "C6", name: "C6", capacity: 2, type: "table" },
         { id: "D1", name: "D1", capacity: 6, type: "table" },
         { id: "D2", name: "D2", capacity: 6, type: "table" },
