@@ -723,6 +723,27 @@ window.assignCalendlyBookingToTable = function(calendlyBooking) {
         return { success: false, error: 'Invalid booking data' };
     }
     
+    // **NEW: Check if the reservation is in the past - prevent reassigning past reservations**
+    const now = new Date();
+    const currentTime = now.getTime();
+    const bookingStartTime = bookingStart.getTime();
+    
+    // If the booking start time is more than 30 minutes in the past, don't assign it
+    const thirtyMinutesAgo = currentTime - (30 * 60 * 1000);
+    if (bookingStartTime < thirtyMinutesAgo) {
+        console.log(`⏰ PAST RESERVATION DETECTED: ${customerName || 'Unknown'} at ${bookingStart.toLocaleString()}`);
+        console.log(`Current time: ${now.toLocaleString()}`);
+        console.log(`Booking time: ${bookingStart.toLocaleString()}`);
+        console.log(`Time difference: ${Math.round((currentTime - bookingStartTime) / 60000)} minutes`);
+        console.log(`❌ Skipping past reservation to prevent re-assignment after staff deletion`);
+        
+        return { 
+            success: false, 
+            error: `Cannot assign past reservation for ${customerName || 'Unknown'} at ${bookingStart.toLocaleTimeString()}. Reservation is ${Math.round((currentTime - bookingStartTime) / 60000)} minutes in the past.`,
+            isPastReservation: true
+        };
+    }
+    
     // **IMPROVED: More thorough duplicate detection**
     console.log('🔍 Checking for existing assignments...');
     

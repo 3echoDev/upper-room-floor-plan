@@ -321,6 +321,36 @@ class CalendlyService {
     // Check if an event has already been assigned a table using multiple identifiers
     async isEventAlreadyAssigned(eventId, customerName, phoneNumber, startTime) {
         try {
+            // **NEW: Check if the event is in the past - mark as already assigned to prevent re-assignment**
+            if (startTime) {
+                const eventTime = new Date(startTime);
+                const now = new Date();
+                const currentTime = now.getTime();
+                const eventStartTime = eventTime.getTime();
+                
+                // If the event start time is more than 30 minutes in the past, consider it already assigned
+                const thirtyMinutesAgo = currentTime - (30 * 60 * 1000);
+                if (eventStartTime < thirtyMinutesAgo) {
+                    console.log(`⏰ PAST EVENT DETECTED: ${customerName || 'Unknown'} at ${eventTime.toLocaleString()}`);
+                    console.log(`Current time: ${now.toLocaleString()}`);
+                    console.log(`Event time: ${eventTime.toLocaleString()}`);
+                    console.log(`Time difference: ${Math.round((currentTime - eventStartTime) / 60000)} minutes`);
+                    console.log(`✅ Marking past event as already assigned to prevent re-assignment after staff deletion`);
+                    
+                    // Mark this event as assigned to prevent future processing
+                    this.assignedEventIds.add(eventId);
+                    
+                    // Also mark by unique key and time key
+                    const uniqueKey = this.createUniqueKey(customerName, phoneNumber, startTime);
+                    if (uniqueKey) this.assignedEventIds.add(uniqueKey);
+                    
+                    const timeKey = this.createTimeKey(startTime);
+                    if (timeKey) this.assignedEventIds.add(timeKey);
+                    
+                    return true;
+                }
+            }
+            
             // Check local tracking first by event ID
             if (this.assignedEventIds.has(eventId)) {
                 console.log(`Event ${eventId} already tracked as assigned`);
@@ -702,6 +732,8 @@ async function updateCalendlyBookings() {
             return;
         }
 
+        let pastEventCount = 0;
+
         let bookingsHtml = '';
         const bookingsForAssignment = [];
         
@@ -715,6 +747,14 @@ async function updateCalendlyBookings() {
                     event.invitees && event.invitees.length > 0 ? event.invitees[0].phone : null, 
                     event.start_time
                 );
+                
+                // **NEW: Check if this is a past event**
+                const eventStartTime = new Date(event.start_time);
+                const now = new Date();
+                const currentTime = now.getTime();
+                const eventStartTimeMs = eventStartTime.getTime();
+                const thirtyMinutesAgo = currentTime - (30 * 60 * 1000);
+                const isPastEvent = eventStartTimeMs < thirtyMinutesAgo;
                 
                 const startDateTime = formatDateTime(event.start_time);
                 const endDateTime = formatDateTime(event.end_time);
@@ -799,7 +839,21 @@ async function updateCalendlyBookings() {
                     )
                 );
 
-                if (assignedTable || isAlreadyAssigned) {
+                if (isPastEvent) {
+                    // **NEW: Past event - show as completed and don't try to assign**
+                    pastEventCount++;
+                    assignedTableInfo = `
+                        <div class="d-flex align-items-center justify-content-between bg-secondary bg-opacity-10 rounded p-2">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-clock-history text-secondary me-2"></i>
+                                <span class="text-secondary fw-bold">Past Reservation</span>
+                            </div>
+                            <small class="text-secondary">
+                                ${Math.round((currentTime - eventStartTimeMs) / 60000)} min ago
+                            </small>
+                        </div>
+                    `;
+                } else if (assignedTable || isAlreadyAssigned) {
                     // Mark as assigned in service
                     calendlyService.markEventAsAssigned(eventId, customerName, phoneNumber, event.start_time);
                     
@@ -815,7 +869,7 @@ async function updateCalendlyBookings() {
                         </div>
                     `;
                 } else {
-                    // **FIXED: This booking needs assignment - add to queue**
+                    // **FIXED: This booking needs assignment - add to queue (only if not past)**
                     const bookingForAssignment = {
                         eventId: eventId,
                         startTime: new Date(event.start_time),
@@ -842,13 +896,16 @@ async function updateCalendlyBookings() {
                 }
 
                 // Build the booking HTML as a card instead of list item
+                const headerClass = isPastEvent ? 'bg-secondary' : 'bg-primary';
+                const headerTextClass = isPastEvent ? 'text-white' : 'text-white';
+                
                 bookingsHtml += `
                     <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="card h-100 shadow-sm">
-                            <div class="card-header bg-primary text-white">
+                        <div class="card h-100 shadow-sm ${isPastEvent ? 'opacity-75' : ''}">
+                            <div class="card-header ${headerClass} ${headerTextClass}">
                                 <div class="d-flex justify-content-between align-items-center">
                                     <h6 class="mb-0">
-                                        <i class="bi bi-clock me-1"></i>
+                                        <i class="bi ${isPastEvent ? 'bi-clock-history' : 'bi-clock'} me-1"></i>
                                         ${startDateTime.time} - ${endDateTime.time}
                                     </h6>
                                     <small class="opacity-75">${startDateTime.date}</small>
@@ -903,7 +960,7 @@ async function updateCalendlyBookings() {
                                     <small class="text-muted d-block">
                                         <i class="bi bi-info-circle me-1"></i><strong>System Note</strong>
                                     </small>
-                                    <span class="text-muted small">Automatically assigned from Calendly booking</span>
+                                    <span class="text-muted small">${isPastEvent ? 'Past reservation - not reassigned after completion' : 'Automatically assigned from Calendly booking'}</span>
                                 </div>
                             </div>
                             
@@ -921,7 +978,22 @@ async function updateCalendlyBookings() {
 
         bookingsContainer.innerHTML = `<div class="row">${bookingsHtml}</div>`;
 
-        // Automatically assign unassigned bookings with priority rules
+        // **NEW: Show summary of past events if any**
+        if (pastEventCount > 0) {
+            const summaryHtml = `
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Past Reservations:</strong> ${pastEventCount} reservation(s) from the past are shown but will not be reassigned to prevent conflicts after staff deletion.
+                        </div>
+                    </div>
+                </div>
+            `;
+            bookingsContainer.innerHTML += summaryHtml;
+        }
+
+        // Automatically assign unassigned bookings with priority rules (skip past events)
         if (bookingsForAssignment.length > 0) {
             console.log(`Found ${bookingsForAssignment.length} unassigned Calendly bookings. Auto-assigning based on priority rules...`);
             
@@ -1106,6 +1178,19 @@ async function processFutureCalendlyBookings() {
 
                 if (isAlreadyAssigned) {
                     console.log(`Skipping future booking - already assigned: ${customerName}`);
+                    continue;
+                }
+                
+                // **NEW: Check if this is a past event (for future bookings that might be in the past)**
+                const eventStartTime = new Date(event.start_time);
+                const now = new Date();
+                const currentTime = now.getTime();
+                const eventStartTimeMs = eventStartTime.getTime();
+                const thirtyMinutesAgo = currentTime - (30 * 60 * 1000);
+                const isPastEvent = eventStartTimeMs < thirtyMinutesAgo;
+                
+                if (isPastEvent) {
+                    console.log(`Skipping past future booking - event is in the past: ${customerName} at ${eventStartTime.toLocaleString()}`);
                     continue;
                 }
 
