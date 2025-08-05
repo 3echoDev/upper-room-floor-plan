@@ -978,20 +978,7 @@ async function updateCalendlyBookings() {
 
         bookingsContainer.innerHTML = `<div class="row">${bookingsHtml}</div>`;
 
-        // **NEW: Show summary of past events if any**
-        if (pastEventCount > 0) {
-            const summaryHtml = `
-                <div class="row mt-3">
-                    <div class="col-12">
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle me-2"></i>
-                            <strong>Past Reservations:</strong> ${pastEventCount} reservation(s) from the past are shown but will not be reassigned to prevent conflicts after staff deletion.
-                        </div>
-                    </div>
-                </div>
-            `;
-            bookingsContainer.innerHTML += summaryHtml;
-        }
+
 
         // Automatically assign unassigned bookings with priority rules (skip past events)
         if (bookingsForAssignment.length > 0) {
