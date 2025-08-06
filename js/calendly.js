@@ -679,12 +679,21 @@ async function testCalendlyConnection() {
 }
 
 // Update Calendly bookings display and handle intelligent assignment
+// Add flag to prevent multiple simultaneous calls
+if (window.updateCalendlyBookingsInProgress) {
+    console.log('🔄 updateCalendlyBookings already in progress, skipping...');
+    return;
+}
+
+window.updateCalendlyBookingsInProgress = true;
+
 async function updateCalendlyBookings() {
     const bookingsContainer = document.getElementById('calendly-bookings');
     const loadingElement = document.getElementById('calendly-loading');
     
     if (!bookingsContainer) {
         console.warn('Calendly bookings container not found');
+        window.updateCalendlyBookingsInProgress = false;
         return;
     }
 
@@ -1002,11 +1011,9 @@ async function updateCalendlyBookings() {
                     updateReservationCount();
                     updateFloorPlanTableStatuses();
                     
-                    // **IMPORTANT: Refresh the Calendly bookings display to show updated assignments**
-                    console.log('🔄 Refreshing Calendly bookings display to show new assignments...');
-                    setTimeout(() => {
-                        updateCalendlyBookings(); // Re-run this function to show updated status
-                    }, 2000); // Small delay to ensure Airtable is updated
+                    // **FIXED: Don't recursively call updateCalendlyBookings() to prevent duplicate processing**
+                    // The UI will be updated by the periodic refresh and the initialize() call above
+                    console.log('✅ Calendly bookings processed successfully - UI updated without recursive call');
                     
                     // Show success message with more details
                     const successMessage = `Successfully assigned ${assignmentResults.summary.assigned} Calendly booking(s) to tables!`;
@@ -1082,6 +1089,8 @@ async function updateCalendlyBookings() {
         if (loadingElement) {
             loadingElement.style.display = 'none';
         }
+        // Reset the flag to allow future calls
+        window.updateCalendlyBookingsInProgress = false;
     }
 }
 
