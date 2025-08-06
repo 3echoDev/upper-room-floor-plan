@@ -679,15 +679,15 @@ async function testCalendlyConnection() {
 }
 
 // Update Calendly bookings display and handle intelligent assignment
-// Add flag to prevent multiple simultaneous calls
-if (window.updateCalendlyBookingsInProgress) {
-    console.log('🔄 updateCalendlyBookings already in progress, skipping...');
-    return;
-}
-
-window.updateCalendlyBookingsInProgress = true;
-
 async function updateCalendlyBookings() {
+    // Add flag to prevent multiple simultaneous calls
+    if (window.updateCalendlyBookingsInProgress) {
+        console.log('🔄 updateCalendlyBookings already in progress, skipping...');
+        return;
+    }
+
+    window.updateCalendlyBookingsInProgress = true;
+    
     const bookingsContainer = document.getElementById('calendly-bookings');
     const loadingElement = document.getElementById('calendly-loading');
     
@@ -712,6 +712,7 @@ async function updateCalendlyBookings() {
                 </div>
             </div>
         `;
+        window.updateCalendlyBookingsInProgress = false;
         return;
     }
 
@@ -738,6 +739,7 @@ async function updateCalendlyBookings() {
                     </div>
                 </div>
             `;
+            window.updateCalendlyBookingsInProgress = false;
             return;
         }
 
