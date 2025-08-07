@@ -312,8 +312,11 @@ window.addEventListener('load', function() {
                     ` : ''}
                 </div>
                 
-                <!-- Cancel Button -->
+                <!-- Action Buttons -->
                 <div class="mt-2 pt-2 border-top text-end">
+                    <button class="btn btn-sm btn-outline-secondary me-2 edit-reservation-btn" data-table-id="${table.id}" data-reservation-id="${reservation.id}">
+                        <i class="bi bi-pencil me-1"></i>Edit
+                    </button>
                     ${systemNotes && (systemNotes.includes('combined') || systemNotes.includes('Assigned')) ? `
                         <button class="btn btn-sm btn-outline-primary me-2" onclick="openEditTablesModal('${reservation.id}', '${table.id}', '${systemNotes.replace(/'/g, "&apos;")}')">
                             <i class="bi bi-pencil-square me-1"></i>Edit Tables
@@ -331,6 +334,7 @@ window.addEventListener('load', function() {
     window.renderTableColumn = renderTableColumn;
     window.renderTable = renderTable;
     window.renderReservationSummary = renderReservationSummary;
+    window.editReservation = editReservation;
 
     // Initialize the page
     function initialize() {
@@ -516,6 +520,357 @@ window.addEventListener('load', function() {
 
     // Make table click handler globally available
     window.handleTableClick = handleTableClick;
+    
+    // Function to position modal relative to a clicked element
+    function positionModalRelativeToElement(modal, clickedElement) {
+        console.log('Positioning modal relative to element:', clickedElement);
+        
+        // Find the table card container to position relative to
+        // Try multiple selectors to find the table card
+        let tableCard = clickedElement.closest('.card');
+        if (!tableCard) {
+            // Try finding by data-table-id in case the button is outside the card
+            const tableId = clickedElement.getAttribute('data-table-id');
+            if (tableId) {
+                // Look for the table section by ID
+                const tableSection = document.querySelector(`[data-table="${tableId}"]`) || 
+                                   document.querySelector(`[id*="${tableId}"]`) ||
+                                   document.querySelector(`.table-card-${tableId}`);
+                if (tableSection) {
+                    tableCard = tableSection.closest('.card') || tableSection;
+                }
+            }
+        }
+        
+        if (!tableCard) {
+            console.warn('Could not find table card for positioning, using clicked element');
+            tableCard = clickedElement.closest('.col') || clickedElement.parentElement;
+        }
+        
+        const rect = tableCard.getBoundingClientRect();
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        const modalWidth = 420; // Slightly wider for better form spacing
+        const modalHeight = Math.min(700, viewportHeight * 0.9);
+        
+        let left, top;
+        
+        console.log('Table card rect:', rect, 'Viewport:', { width: viewportWidth, height: viewportHeight });
+        
+        // Determine if modal should appear on the right or left of the table
+        if (rect.right + modalWidth + 20 <= viewportWidth) {
+            // Position to the right of table
+            left = rect.right + 20;
+            console.log('Positioning to the right of table');
+        } else if (rect.left - modalWidth - 20 >= 0) {
+            // Position to the left of table
+            left = rect.left - modalWidth - 20;
+            console.log('Positioning to the left of table');
+        } else {
+            // Center in viewport if no space on either side
+            left = Math.max(10, (viewportWidth - modalWidth) / 2);
+            console.log('Centering in viewport');
+        }
+        
+        // Position vertically aligned with the table, but ensure it stays in viewport
+        top = Math.max(10, Math.min(rect.top, viewportHeight - modalHeight - 10));
+        
+        // Account for scroll position
+        top += window.scrollY;
+        left += window.scrollX;
+        
+        console.log('Final calculated modal position:', { left, top, rect, scrollY: window.scrollY, scrollX: window.scrollX });
+        
+        // Apply positioning to modal dialog
+        const modalDialog = modal.querySelector('.modal-dialog');
+        if (modalDialog) {
+            modalDialog.style.left = left + 'px';
+            modalDialog.style.top = top + 'px';
+            modalDialog.style.width = modalWidth + 'px';
+            console.log('Applied positioning to modal dialog');
+        }
+    }
+    
+    // Add event delegation for edit buttons
+    if (!window.editReservationClickHandlerAdded) {
+        document.addEventListener('click', function(e) {
+            const editBtn = e.target.closest('.edit-reservation-btn');
+            if (editBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Store current scroll position to prevent any scrolling
+                const currentScrollY = window.scrollY;
+                const currentScrollX = window.scrollX;
+                
+                const tableId = editBtn.getAttribute('data-table-id');
+                const reservationId = editBtn.getAttribute('data-reservation-id');
+                console.log('Edit reservation button clicked:', { tableId, reservationId });
+                
+                // Open edit modal
+                editReservation(tableId, reservationId, editBtn);
+                
+                // Force restore scroll position immediately and with multiple attempts
+                window.scrollTo(currentScrollX, currentScrollY);
+                
+                // Additional scroll position restoration with slight delays
+                setTimeout(() => {
+                    window.scrollTo(currentScrollX, currentScrollY);
+                }, 10);
+                
+                setTimeout(() => {
+                    window.scrollTo(currentScrollX, currentScrollY);
+                }, 50);
+                
+                setTimeout(() => {
+                    window.scrollTo(currentScrollX, currentScrollY);
+                }, 100);
+            }
+        });
+        window.editReservationClickHandlerAdded = true;
+        console.log('Added edit reservation click handler');
+    }
+    
+    // Add click outside to close modal handler
+    document.addEventListener('click', function(e) {
+        const editModal = document.getElementById('editReservationModal');
+        if (editModal && editModal.classList.contains('show')) {
+            const modalContent = editModal.querySelector('.modal-content');
+            if (modalContent && !modalContent.contains(e.target) && !e.target.closest('.edit-reservation-btn')) {
+                const modal = bootstrap.Modal.getInstance(editModal);
+                if (modal) {
+                    modal.hide();
+                    // Restore body scroll when modal closes
+                    document.body.style.overflow = 'auto';
+                }
+            }
+        }
+    });
+
+    // Function to open the edit reservation modal
+    function editReservation(tableId, reservationId, clickedElement = null) {
+        console.log('Opening edit modal for reservation:', { tableId, reservationId, clickedElement });
+        
+        // Find the reservation data
+        const table = tables.find(t => t.id === tableId);
+        if (!table) {
+            console.error('Table not found:', tableId);
+            return;
+        }
+        
+        const reservation = table.reservations.find(r => r.id === reservationId);
+        if (!reservation) {
+            console.error('Reservation not found:', reservationId);
+            return;
+        }
+        
+        console.log('Found reservation for editing:', reservation);
+        
+        // Populate the table dropdown
+        const editTableSelect = document.getElementById('editTableId');
+        if (editTableSelect) {
+            editTableSelect.innerHTML = '';
+            tables.forEach(t => {
+                const option = document.createElement('option');
+                option.value = t.id;
+                option.textContent = `${t.name} (${t.type} - ${t.capacity} pax)`;
+                if (t.id === tableId) {
+                    option.selected = true;
+                }
+                editTableSelect.appendChild(option);
+            });
+        }
+        
+        // Set table information in modal
+        const editSelectedTableInfo = document.getElementById('editSelectedTableInfo');
+        const editSelectedTableDetails = document.getElementById('editSelectedTableDetails');
+        
+        if (editSelectedTableInfo) {
+            editSelectedTableInfo.textContent = `Currently: Table ${table.name}`;
+        }
+        
+        if (editSelectedTableDetails) {
+            editSelectedTableDetails.textContent = `${table.type} - Capacity: ${table.capacity} pax`;
+        }
+        
+        // Parse the reservation time
+        const reservationTime = new Date(reservation.startTime);
+        const timeString = reservationTime.toTimeString().slice(0, 5);
+        const dateString = reservationTime.toISOString().slice(0, 10); // YYYY-MM-DD format
+        
+        // Map reservation type from Airtable format
+        let mappedReservationType = 'walk-in';
+        if (reservation.reservationType) {
+            switch(reservation.reservationType.toLowerCase()) {
+                case 'voice agent':
+                case 'phone call':
+                    mappedReservationType = 'phone-call';
+                    break;
+                case 'calendly':
+                    mappedReservationType = 'calendly';
+                    break;
+                default:
+                    mappedReservationType = 'walk-in';
+            }
+        }
+        
+        // Populate form fields with current reservation data
+        document.getElementById('editReservationId').value = reservationId;
+        document.getElementById('editOriginalTableId').value = tableId;
+        document.getElementById('editReservationSource').value = mappedReservationType;
+        document.getElementById('editReservationStatus').value = reservation.status || 'reserved';
+        document.getElementById('editNumberOfGuests').value = reservation.pax || '';
+        document.getElementById('editReservationDate').value = dateString;
+        document.getElementById('editArrivalTime').value = timeString;
+        document.getElementById('editDuration').value = reservation.duration || '60';
+        document.getElementById('editCustomerName').value = reservation.customerName || '';
+        document.getElementById('editPhoneNumber').value = reservation.phoneNumber || '';
+        document.getElementById('editCustomerNotes').value = reservation.customerNotes || '';
+        
+        // Calculate modal position relative to clicked element
+        const modalElement = document.getElementById('editReservationModal');
+        
+        if (modalElement) {
+            // Calculate position based on clicked element
+            if (clickedElement) {
+                positionModalRelativeToElement(modalElement, clickedElement);
+            }
+            
+            // Clear any existing modal instances
+            const existingModal = bootstrap.Modal.getInstance(modalElement);
+            if (existingModal) {
+                existingModal.dispose();
+            }
+            
+            // Create new modal instance configured without backdrop and focus
+            const modal = new bootstrap.Modal(modalElement, {
+                backdrop: false,
+                keyboard: true,
+                focus: false  // Prevent auto-focus to avoid scrolling
+            });
+            
+            // Show the modal
+            modal.show();
+            
+            // Enhanced focus management for side panel - prevent auto-focus to avoid scrolling
+            modalElement.addEventListener('shown.bs.modal', function() {
+                // Intentionally do NOT focus any elements to prevent unwanted scrolling
+                // The modal is positioned beside the table and focus would cause page to jump
+                console.log('Modal shown - not focusing any elements to prevent scrolling');
+            }, { once: true });
+            
+            // Restore body scroll when modal is hidden
+            modalElement.addEventListener('hidden.bs.modal', function() {
+                document.body.style.overflow = 'auto';
+                console.log('Modal hidden - restored body scroll');
+            }, { once: true });
+        }
+        
+        // Set up form submission handler
+        const confirmButton = document.getElementById('confirmEditReservation');
+        if (confirmButton) {
+            // Remove existing event listeners
+            const newConfirmButton = confirmButton.cloneNode(true);
+            confirmButton.parentNode.replaceChild(newConfirmButton, confirmButton);
+            
+            // Add new event listener
+            const finalConfirmButton = document.getElementById('confirmEditReservation');
+            finalConfirmButton.addEventListener('click', async function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Disable button and show loading
+                finalConfirmButton.disabled = true;
+                finalConfirmButton.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Updating...';
+                
+                try {
+                    await handleEditReservationSubmit();
+                } catch (error) {
+                    console.error('Error updating reservation:', error);
+                    alert('Failed to update reservation: ' + error.message);
+                } finally {
+                    // Re-enable button
+                    finalConfirmButton.disabled = false;
+                    finalConfirmButton.innerHTML = 'Update Reservation';
+                }
+            });
+        }
+    }
+    
+    // Function to handle edit reservation form submission
+    async function handleEditReservationSubmit() {
+        console.log('Handling edit reservation submission...');
+        
+        // Get form data
+        const formData = {
+            reservationId: document.getElementById('editReservationId').value,
+            originalTableId: document.getElementById('editOriginalTableId').value,
+            tableId: document.getElementById('editTableId').value,
+            source: document.getElementById('editReservationSource').value,
+            status: document.getElementById('editReservationStatus').value,
+            numberOfGuests: document.getElementById('editNumberOfGuests').value,
+            reservationDate: document.getElementById('editReservationDate').value,
+            arrivalTime: document.getElementById('editArrivalTime').value,
+            duration: document.getElementById('editDuration').value,
+            customerName: document.getElementById('editCustomerName').value,
+            phoneNumber: document.getElementById('editPhoneNumber').value,
+            customerNotes: document.getElementById('editCustomerNotes').value
+        };
+        
+        console.log('Edit form data:', formData);
+        
+        // Validate required fields
+        if (!formData.reservationId || !formData.tableId || !formData.source || 
+            !formData.status || !formData.numberOfGuests || !formData.reservationDate || !formData.arrivalTime || !formData.duration) {
+            throw new Error('Please fill in all required fields');
+        }
+        
+        // Create date object from reservation date and arrival time
+        const [hours, minutes] = formData.arrivalTime.split(':');
+        const reservationDate = new Date(formData.reservationDate);
+        const arrivalDateTime = new Date(reservationDate.getFullYear(), reservationDate.getMonth(), reservationDate.getDate(), parseInt(hours), parseInt(minutes));
+        
+        // Prepare update data
+        const updateData = {
+            tableId: formData.tableId,
+            dateTime: arrivalDateTime,
+            status: formData.status,
+            reservationType: formData.source,
+            customerName: formData.customerName,
+            phoneNumber: formData.phoneNumber,
+            pax: parseInt(formData.numberOfGuests),
+            duration: parseInt(formData.duration),
+            customerNotes: formData.customerNotes,
+            systemNotes: `Duration: ${formData.duration} minutes. Updated via floor plan.`
+        };
+        
+        console.log('Updating reservation with data:', updateData);
+        
+        // Update the reservation in Airtable
+        await window.airtableService.updateReservation(formData.reservationId, updateData);
+        
+        console.log('Successfully updated reservation in Airtable');
+        
+        // Close the modal
+        const modal = bootstrap.Modal.getInstance(document.getElementById('editReservationModal'));
+        modal.hide();
+        
+        // Restore body scroll immediately when modal is closed programmatically
+        document.body.style.overflow = 'auto';
+        
+        // Show success message
+        showSuccessMessage('Reservation updated successfully!');
+        
+        // Update the UI
+        setTimeout(async () => {
+            await fetchAndUpdateReservations();
+            updateFloorPlanTableStatuses();
+            updateReservationCount();
+        }, 500);
+    }
+    
+    // Make edit function globally available
+    window.editReservation = editReservation;
 
     // Function to open the make reservation modal
     function openMakeReservationModal(tableId, clickedElement = null) {

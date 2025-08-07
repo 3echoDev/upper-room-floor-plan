@@ -1582,6 +1582,41 @@ async function handlePopoverSubmit(event) {
 // Make function globally available
 window.handlePopoverSubmit = handlePopoverSubmit;
 
+// Function to handle guest count change with +/- buttons
+function changeGuestCount(change) {
+    const guestInput = document.getElementById('editNumberOfGuests');
+    if (!guestInput) return;
+    
+    const currentValue = parseInt(guestInput.value) || 1;
+    const newValue = Math.max(1, Math.min(20, currentValue + change));
+    guestInput.value = newValue;
+    
+    // Trigger change event for validation
+    guestInput.dispatchEvent(new Event('change'));
+}
+
+// Function to handle duration dropdown change
+function handleDurationChange() {
+    const durationSelect = document.getElementById('editDuration');
+    const customDurationRow = document.getElementById('customDurationRow');
+    
+    if (!durationSelect || !customDurationRow) return;
+    
+    if (durationSelect.value === 'custom') {
+        customDurationRow.style.display = 'block';
+        const customInput = document.getElementById('editCustomDuration');
+        if (customInput) {
+            customInput.focus();
+        }
+    } else {
+        customDurationRow.style.display = 'none';
+    }
+}
+
+// Make functions globally available
+window.changeGuestCount = changeGuestCount;
+window.handleDurationChange = handleDurationChange;
+
 // Function to open the reservation popover
 function openReservationPopover(tableId, clickedElement) {
     const table = tables.find(t => t.id === tableId);

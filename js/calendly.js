@@ -6,6 +6,18 @@ class CalendlyService {
         this.userUri = null; // Cache the user URI
         this.isConfigured = this.accessToken && this.accessToken !== 'PLACEHOLDER_TOKEN_DO_NOT_REPLACE' && this.accessToken.length > 50;
         this.assignedEventIds = new Set(); // Track already assigned events
+        
+        // Restore past events from localStorage
+        try {
+            const pastEvents = JSON.parse(localStorage.getItem('calendlyPastEvents') || '[]');
+            pastEvents.forEach(eventId => {
+                this.assignedEventIds.add(eventId);
+                this.assignedEventIds.add(`past_${eventId}`);
+            });
+            console.log(`Restored ${pastEvents.length} past event(s) from storage`);
+        } catch (e) {
+            console.warn('Failed to restore past events:', e);
+        }
     }
 
     // Test if the service is properly configured
@@ -337,15 +349,34 @@ class CalendlyService {
                     console.log(`Time difference: ${Math.round((currentTime - eventStartTime) / 60000)} minutes`);
                     console.log(`✅ Marking past event as already assigned to prevent re-assignment after staff deletion`);
                     
-                    // Mark this event as assigned to prevent future processing
+                    // Mark this event as assigned AND past to prevent future processing
+                    const pastEventKey = `past_${eventId}`;
                     this.assignedEventIds.add(eventId);
+                    this.assignedEventIds.add(pastEventKey);
                     
                     // Also mark by unique key and time key
                     const uniqueKey = this.createUniqueKey(customerName, phoneNumber, startTime);
-                    if (uniqueKey) this.assignedEventIds.add(uniqueKey);
+                    if (uniqueKey) {
+                        this.assignedEventIds.add(uniqueKey);
+                        this.assignedEventIds.add(`past_${uniqueKey}`);
+                    }
                     
                     const timeKey = this.createTimeKey(startTime);
-                    if (timeKey) this.assignedEventIds.add(timeKey);
+                    if (timeKey) {
+                        this.assignedEventIds.add(timeKey);
+                        this.assignedEventIds.add(`past_${timeKey}`);
+                    }
+                    
+                    // Store in localStorage to persist across page reloads
+                    try {
+                        const pastEvents = JSON.parse(localStorage.getItem('calendlyPastEvents') || '[]');
+                        if (!pastEvents.includes(eventId)) {
+                            pastEvents.push(eventId);
+                            localStorage.setItem('calendlyPastEvents', JSON.stringify(pastEvents));
+                        }
+                    } catch (e) {
+                        console.warn('Failed to persist past event status:', e);
+                    }
                     
                     return true;
                 }
@@ -481,27 +512,59 @@ class CalendlyService {
 
     // Mark an event as assigned
     markEventAsAssigned(eventId, customerName = null, phoneNumber = null, startTime = null) {
-        this.assignedEventIds.add(eventId);
+        // Check if this is a past event
+        let isPastEvent = false;
+        if (startTime) {
+            const eventTime = new Date(startTime);
+            const now = new Date();
+            const thirtyMinutesAgo = now.getTime() - (30 * 60 * 1000);
+            isPastEvent = eventTime.getTime() < thirtyMinutesAgo;
+        }
+
+        // Mark the event ID
+        if (eventId) {
+            this.assignedEventIds.add(eventId);
+            if (isPastEvent) {
+                this.assignedEventIds.add(`past_${eventId}`);
+                // Update localStorage
+                try {
+                    const pastEvents = JSON.parse(localStorage.getItem('calendlyPastEvents') || '[]');
+                    if (!pastEvents.includes(eventId)) {
+                        pastEvents.push(eventId);
+                        localStorage.setItem('calendlyPastEvents', JSON.stringify(pastEvents));
+                    }
+                } catch (e) {
+                    console.warn('Failed to persist past event status:', e);
+                }
+            }
+        }
         
         // Also track unique key based on customer details
         const uniqueKey = this.createUniqueKey(customerName, phoneNumber, startTime);
         if (uniqueKey) {
             this.assignedEventIds.add(uniqueKey);
+            if (isPastEvent) this.assignedEventIds.add(`past_${uniqueKey}`);
             console.log(`Marked as assigned: ${eventId} and ${uniqueKey}`);
         }
         
-        // **NEW: Also track time-based key for exact time matching**
+        // Also track time-based key for exact time matching
         const timeKey = this.createTimeKey(startTime);
         if (timeKey) {
             this.assignedEventIds.add(timeKey);
+            if (isPastEvent) this.assignedEventIds.add(`past_${timeKey}`);
             console.log(`Marked time as assigned: ${timeKey}`);
         }
         
-        // **NEW: Track no-customer bookings separately**
+        // Track no-customer bookings separately
         if ((!customerName || customerName === 'Calendly Booking') && timeKey) {
             const noCustomerKey = `calendly_no_customer_${timeKey}`;
             this.assignedEventIds.add(noCustomerKey);
+            if (isPastEvent) this.assignedEventIds.add(`past_${noCustomerKey}`);
             console.log(`Marked no-customer booking as assigned: ${noCustomerKey}`);
+        }
+
+        if (isPastEvent) {
+            console.log(`🕒 Marked past event as assigned: ${customerName || 'Unknown'} at ${new Date(startTime).toLocaleString()}`);
         }
     }
 
@@ -514,9 +577,17 @@ class CalendlyService {
             for (const table of tables) {
                 for (const reservation of table.reservations) {
                     if (reservation.source === 'calendly') {
-                        // **ENHANCED: Create multiple unique identifiers for better tracking**
+                        // Check if this is a past event
+                        const startTime = reservation.startTime;
+                        let isPastEvent = false;
+                        if (startTime) {
+                            const eventTime = new Date(startTime);
+                            const now = new Date();
+                            const thirtyMinutesAgo = now.getTime() - (30 * 60 * 1000);
+                            isPastEvent = eventTime.getTime() < thirtyMinutesAgo;
+                        }
                         
-                        // 1. Create unique identifier using customer details + time
+                        // Create unique identifier using customer details + time
                         const uniqueKey = this.createUniqueKey(
                             reservation.customerName, 
                             reservation.phoneNumber, 
@@ -525,20 +596,23 @@ class CalendlyService {
                         
                         if (uniqueKey) {
                             this.assignedEventIds.add(uniqueKey);
+                            if (isPastEvent) this.assignedEventIds.add(`past_${uniqueKey}`);
                             console.log(`Tracked existing local assignment: ${uniqueKey}`);
                         }
                         
-                        // **NEW: 2. Create time-based identifier for exact time matches**
+                        // Create time-based identifier for exact time matches
                         const timeKey = this.createTimeKey(reservation.startTime);
                         if (timeKey) {
                             this.assignedEventIds.add(timeKey);
+                            if (isPastEvent) this.assignedEventIds.add(`past_${timeKey}`);
                             console.log(`Tracked existing time-based assignment: ${timeKey}`);
                         }
                         
-                        // **NEW: 3. Create identifier for Calendly bookings without customer info**
+                        // Create identifier for Calendly bookings without customer info
                         if (!reservation.customerName || reservation.customerName === 'Calendly Booking') {
                             const noCustomerKey = `calendly_no_customer_${timeKey}`;
                             this.assignedEventIds.add(noCustomerKey);
+                            if (isPastEvent) this.assignedEventIds.add(`past_${noCustomerKey}`);
                             console.log(`Tracked existing no-customer assignment: ${noCustomerKey}`);
                         }
                         
@@ -546,7 +620,25 @@ class CalendlyService {
                         const notes = reservation.customerNotes || reservation.systemNotes || '';
                         const eventIdMatch = notes.match(/events\/[a-zA-Z0-9-]+/);
                         if (eventIdMatch) {
-                            this.assignedEventIds.add(eventIdMatch[0]);
+                            const eventId = eventIdMatch[0];
+                            this.assignedEventIds.add(eventId);
+                            if (isPastEvent) {
+                                this.assignedEventIds.add(`past_${eventId}`);
+                                // Update localStorage
+                                try {
+                                    const pastEvents = JSON.parse(localStorage.getItem('calendlyPastEvents') || '[]');
+                                    if (!pastEvents.includes(eventId)) {
+                                        pastEvents.push(eventId);
+                                        localStorage.setItem('calendlyPastEvents', JSON.stringify(pastEvents));
+                                    }
+                                } catch (e) {
+                                    console.warn('Failed to persist past event status:', e);
+                                }
+                            }
+                        }
+                        
+                        if (isPastEvent) {
+                            console.log(`🕒 Tracked past event: ${reservation.customerName || 'Unknown'} at ${new Date(startTime).toLocaleString()}`);
                         }
                     }
                 }

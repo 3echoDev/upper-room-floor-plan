@@ -443,6 +443,149 @@
         </div>
     </div>
 
+    <!-- Edit Reservation Modal -->
+    <div class="modal fade" id="editReservationModal" tabindex="-1" aria-labelledby="editReservationModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editReservationModalLabel">Edit Reservation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editReservationForm">
+                        <!-- Table Info -->
+                        <div class="form-section">
+                            <div class="alert alert-info">
+                                <h6 class="mb-1" id="editSelectedTableInfo">Table Information</h6>
+                                <small id="editSelectedTableDetails">Editing reservation details</small>
+                            </div>
+                        </div>
+
+                        <!-- Table Selection -->
+                        <div class="form-section">
+                            <label class="form-label">Move to Table</label>
+                            <select class="form-select" id="editTableId" name="tableId" required>
+                                <!-- Will be populated dynamically -->
+                            </select>
+                            <small class="form-text text-muted">Change table assignment for this reservation</small>
+                        </div>
+
+                        <!-- Source, Status, Guests -->
+                        <div class="form-section">
+                            <div class="row mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Source</label>
+                                    <select class="form-select" id="editReservationSource" name="source" required>
+                                        <option value="walk-in">Walk-in</option>
+                                        <option value="phone-call">Voice Agent</option>
+                                        <option value="calendly">Calendly</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Status</label>
+                                    <select class="form-select" id="editReservationStatus" name="status" required>
+                                        <option value="reserved">Reserved</option>
+                                        <option value="arrived">Arrived</option>
+                                        <option value="paid">Paid</option>
+                                        <option value="no-show">No Show</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Guests</label>
+                                    <select class="form-select" id="editNumberOfGuests" name="numberOfGuests" required>
+                                        <option value="">Select</option>
+                                        <option value="1">1 guest</option>
+                                        <option value="2">2 guests</option>
+                                        <option value="3">3 guests</option>
+                                        <option value="4">4 guests</option>
+                                        <option value="5">5 guests</option>
+                                        <option value="6">6 guests</option>
+                                        <option value="7">7+ guests</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Date, Time and Duration -->
+                        <div class="form-section">
+                            <div class="row mb-3 date-time-duration-row">
+                                <!-- Row 1: Labels aligned horizontally -->
+                                <div class="labels-row">
+                                    <div class="label-column">
+                                        <label class="form-label">Reservation Date</label>
+                                    </div>
+                                    <div class="label-column">
+                                        <label class="form-label">Arrival Time</label>
+                                    </div>
+                                    <div class="label-column">
+                                        <label class="form-label">Duration</label>
+                                    </div>
+                                </div>
+                                
+                                <!-- Row 2: Hours text positioned under Arrival Time only -->
+                                <div class="hours-row">
+                                    <div class="hours-column empty"></div>
+                                    <div class="hours-column">
+                                        <div class="form-text">Hours: 11:30 AM - 11:00 PM</div>
+                                    </div>
+                                    <div class="hours-column empty"></div>
+                                </div>
+                                
+                                <!-- Row 3: Input fields aligned horizontally -->
+                                <div class="inputs-row">
+                                    <div class="input-column">
+                                        <input type="date" class="form-control" id="editReservationDate" name="reservationDate" required>
+                                    </div>
+                                    <div class="input-column">
+                                        <input type="time" class="form-control" id="editArrivalTime" name="arrivalTime" required min="11:30" max="23:00">
+                                    </div>
+                                    <div class="input-column">
+                                        <select class="form-select" id="editDuration" name="duration" required>
+                                            <option value="">Select duration</option>
+                                            <option value="30">30 minutes</option>
+                                            <option value="60">1 hour</option>
+                                            <option value="90">1.5 hours</option>
+                                            <option value="120">2 hours</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Customer Info -->
+                        <div class="form-section">
+                            <div class="row mb-3 customer-info-row">
+                                <div class="col-md-6">
+                                    <label class="form-label">Customer Name <small>(Optional)</small></label>
+                                    <input type="text" class="form-control" id="editCustomerName" name="customerName" placeholder="Enter name (optional)">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Phone Number <small>(Optional)</small></label>
+                                    <input type="tel" class="form-control" id="editPhoneNumber" name="phoneNumber" placeholder="Enter phone (optional)">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="form-section">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" id="editCustomerNotes" name="customerNotes" rows="3" placeholder="Any special requests or notes..."></textarea>
+                        </div>
+
+                        <input type="hidden" id="editReservationId" name="reservationId">
+                        <input type="hidden" id="editOriginalTableId" name="originalTableId">
+                        
+                        <!-- Form Buttons -->
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="confirmEditReservation">Update Reservation</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Edit Tables Modal -->
     <div class="modal fade" id="editTablesModal" tabindex="-1" aria-labelledby="editTablesModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">

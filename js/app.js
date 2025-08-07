@@ -93,6 +93,111 @@ class AirtableService {
         }
     }
 
+    async updateReservation(recordId, reservationData) {
+        try {
+            console.log('Updating reservation details:', { recordId, reservationData });
+            
+            // Map fields to Airtable format
+            const updateFields = {};
+            
+            if (reservationData.tableId) {
+                updateFields['Table'] = reservationData.tableId;
+            }
+            
+            if (reservationData.dateTime) {
+                updateFields['DateandTime'] = reservationData.dateTime.toISOString();
+            }
+            
+            if (reservationData.status) {
+                // Map status
+                let airtableStatus;
+                switch(reservationData.status) {
+                    case 'reserved':
+                        airtableStatus = 'Reserved';
+                        break;
+                    case 'arrived':
+                        airtableStatus = 'Arrived';
+                        break;
+                    case 'paid':
+                        airtableStatus = 'Paid';
+                        break;
+                    case 'no-show':
+                        airtableStatus = 'No Show';
+                        break;
+                    default:
+                        airtableStatus = 'Reserved';
+                }
+                updateFields['Status'] = airtableStatus;
+            }
+            
+            if (reservationData.reservationType) {
+                // Map reservation type
+                let airtableReservationType;
+                switch(reservationData.reservationType) {
+                    case 'walk-in':
+                        airtableReservationType = 'Walk-in'; // Fixed: Keep Walk-in type
+                        break;
+                    case 'phone-call':
+                        airtableReservationType = 'Voice Agent';
+                        break;
+                    case 'calendly':
+                        airtableReservationType = 'Calendly';
+                        break;
+                    case 'online':
+                        airtableReservationType = 'Online';
+                        break;
+                    case 'other':
+                        airtableReservationType = 'Other';
+                        break;
+                    default:
+                        airtableReservationType = 'Floor Plan';
+                }
+                updateFields['Reservation Type'] = airtableReservationType;
+            }
+            
+            if (reservationData.customerName !== undefined) {
+                updateFields['Name'] = reservationData.customerName || '';
+            }
+            
+            if (reservationData.phoneNumber !== undefined) {
+                updateFields['PH Number'] = reservationData.phoneNumber || '';
+            }
+            
+            if (reservationData.pax !== undefined) {
+                updateFields['Pax'] = reservationData.pax.toString();
+            }
+            
+            if (reservationData.duration !== undefined) {
+                updateFields['Duration'] = reservationData.duration.toString();
+            }
+            
+            if (reservationData.customerNotes !== undefined) {
+                updateFields['Customer Notes'] = reservationData.customerNotes || '';
+            }
+            
+            if (reservationData.systemNotes !== undefined) {
+                updateFields['System Notes'] = reservationData.systemNotes || '';
+            }
+            
+            console.log('Updating Airtable record with fields:', updateFields);
+            
+            await this.base('tbl9dDLnVa5oLEnuq').update([{
+                id: recordId,
+                fields: updateFields
+            }]);
+            
+            // Clear the cache so we fetch fresh data
+            this.cachedReservations = [];
+            this.lastFetchTime = null;
+            
+            console.log('Successfully updated reservation details');
+            return true;
+        } catch (error) {
+            console.error('Detailed error updating reservation:', error);
+            throw error;
+        }
+    }
+
     async getReservations() {
         try {
             // Check if we already have a fetch in progress
@@ -264,7 +369,10 @@ class AirtableService {
             }
             
             if (additionalData.duration) {
-                // Calculate end time for duration tracking
+                // Save duration to the Duration field as string since it's a Single Line Text field
+                reservationData.fields["Duration"] = additionalData.duration.toString();
+                
+                // Calculate end time for duration tracking and add to system notes
                 const endTime = new Date(dateTime);
                 endTime.setMinutes(endTime.getMinutes() + additionalData.duration);
                 reservationData.fields["System Notes"] = `Duration: ${additionalData.duration} minutes (until ${endTime.toLocaleTimeString()})`;
