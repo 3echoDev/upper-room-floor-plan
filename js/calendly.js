@@ -440,7 +440,7 @@ class CalendlyService {
                                 (!reservation.customerName || reservation.customerName === 'Calendly Booking') &&
                                 (!customerName || customerName === 'Calendly Booking');
                             
-                            if (exactTimeMatch || sameCustomerSimilarTime || samePhoneSimilarTime || sameTimeNoCustomer) {
+                            if (sameCustomerSimilarTime || samePhoneSimilarTime || sameTimeNoCustomer) {
                                 console.log(`Found existing assignment for ${customerName || phoneNumber} at similar time`);
                                 console.log('Duplicate details:', {
                                     existing: {

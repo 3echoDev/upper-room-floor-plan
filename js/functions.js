@@ -770,7 +770,7 @@ window.assignCalendlyBookingToTable = function(calendlyBooking) {
                     (!reservation.customerName || reservation.customerName === 'Calendly Booking') &&
                     (!customerName || customerName === 'Calendly Booking');
                 
-                if (exactTimeMatch || similarTimeWithCustomer || sameTimeNoCustomer) {
+                if (similarTimeWithCustomer || sameTimeNoCustomer) {
                     console.log(`❌ DUPLICATE DETECTED in local data: ${customerName || phoneNumber} already assigned to table ${reservation.tableId}`);
                     console.log('Duplicate details:', {
                         existing: {
