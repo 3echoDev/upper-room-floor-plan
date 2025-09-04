@@ -1230,9 +1230,8 @@ window.cleanupDuplicateCalendlyReservations = async function() {
                 const time2 = new Date(res2.startTime);
                 const timeDiff = Math.abs(time1 - time2);
                 
-                // Check for duplicates based on time and customer info
-                const isDuplicate = timeDiff < 60000 || // Within 1 minute
-                    (timeDiff < 300000 && // Within 5 minutes
+                // Check for duplicates based on time and customer info (FIXED - allows multiple bookings at same time)
+                const isDuplicate = (timeDiff < 300000 && // Within 5 minutes
                      ((res1.customerName === res2.customerName && res1.customerName) ||
                       (res1.phoneNumber === res2.phoneNumber && res1.phoneNumber)));
                 

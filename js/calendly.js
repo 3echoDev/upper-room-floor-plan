@@ -775,7 +775,14 @@ async function updateCalendlyBookings() {
         return;
     }
 
+    // **NEW: Prevent interference with other Calendly functions**
+    if (window.calendlyProcessingInProgress) {
+        console.log('🔄 Another Calendly function is running, skipping updateCalendlyBookings...');
+        return;
+    }
+
     window.updateCalendlyBookingsInProgress = true;
+    window.calendlyProcessingInProgress = true;
     
     const bookingsContainer = document.getElementById('calendly-bookings');
     const loadingElement = document.getElementById('calendly-loading');
@@ -1180,8 +1187,9 @@ async function updateCalendlyBookings() {
         if (loadingElement) {
             loadingElement.style.display = 'none';
         }
-        // Reset the flag to allow future calls
+        // Reset the flags to allow future calls
         window.updateCalendlyBookingsInProgress = false;
+        window.calendlyProcessingInProgress = false;
     }
 }
 
@@ -1230,6 +1238,14 @@ async function processFutureCalendlyBookings() {
         console.log('Calendly not configured, skipping future booking processing');
         return;
     }
+
+    // **NEW: Prevent interference with other Calendly functions**
+    if (window.calendlyProcessingInProgress) {
+        console.log('🔄 Another Calendly function is running, skipping processFutureCalendlyBookings...');
+        return;
+    }
+
+    window.calendlyProcessingInProgress = true;
 
     try {
         console.log('Processing future Calendly bookings...');
@@ -1366,6 +1382,9 @@ async function processFutureCalendlyBookings() {
         }
     } catch (error) {
         console.error('Error processing future Calendly bookings:', error);
+    } finally {
+        // Reset the lock to allow other functions to run
+        window.calendlyProcessingInProgress = false;
     }
 }
 
@@ -1380,6 +1399,14 @@ async function processCancelledCalendlyBookings() {
         console.log('Airtable not available, skipping cancelled booking save');
         return;
     }
+
+    // **NEW: Prevent interference with other Calendly functions**
+    if (window.calendlyProcessingInProgress) {
+        console.log('🔄 Another Calendly function is running, skipping processCancelledCalendlyBookings...');
+        return;
+    }
+
+    window.calendlyProcessingInProgress = true;
 
     try {
         console.log('🚫 Processing cancelled Calendly bookings...');
@@ -1542,6 +1569,9 @@ async function processCancelledCalendlyBookings() {
         
     } catch (error) {
         console.error('Error processing cancelled Calendly bookings:', error);
+    } finally {
+        // Reset the lock to allow other functions to run
+        window.calendlyProcessingInProgress = false;
     }
 }
 
@@ -1582,7 +1612,7 @@ window.addEventListener('load', async function() {
             // Load existing assignments first to prevent duplicates
             await calendlyService.loadExistingAssignments();
             
-            // **NEW: Clean up any existing duplicate Calendly reservations**
+            // **NEW: Clean up any existing duplicate Calendly reservations (ONLY ONCE on page load)**
             if (window.cleanupDuplicateCalendlyReservations) {
                 try {
                     const cleanupResult = await window.cleanupDuplicateCalendlyReservations();
