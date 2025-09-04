@@ -361,11 +361,11 @@ class CalendlyService {
                         this.assignedEventIds.add(`past_${uniqueKey}`);
                     }
                     
-                    const timeKey = this.createTimeKey(startTime);
-                    if (timeKey) {
-                        this.assignedEventIds.add(timeKey);
-                        this.assignedEventIds.add(`past_${timeKey}`);
-                    }
+                    // const timeKey = this.createTimeKey(startTime);
+                    // if (timeKey) {
+                    //     this.assignedEventIds.add(timeKey);
+                    //     this.assignedEventIds.add(`past_${timeKey}`);
+                    // }
                     
                     // Store in localStorage to persist across page reloads
                     try {
@@ -395,21 +395,19 @@ class CalendlyService {
                 return true;
             }
             
-            // **NEW: Check by time-based key for exact time matches**
-            const timeKey = this.createTimeKey(startTime);
-            if (timeKey && this.assignedEventIds.has(timeKey)) {
-                console.log(`Time key ${timeKey} already tracked as assigned`);
-                return true;
-            }
+            // **NEW: Check by time-based key for exact time matches (REMOVED - allows multiple bookings at same time)**
+            // const timeKey = this.createTimeKey(startTime);
+            // if (timeKey && this.assignedEventIds.has(timeKey)) {
+            //     console.log(`Time key ${timeKey} already tracked as assigned`);
+            //     return true;
+            // }
             
-            // **NEW: Check for no-customer bookings at the same time**
-            if ((!customerName || customerName === 'Calendly Booking') && timeKey) {
-                const noCustomerKey = `calendly_no_customer_${timeKey}`;
-                if (this.assignedEventIds.has(noCustomerKey)) {
-                    console.log(`No-customer key ${noCustomerKey} already tracked as assigned`);
-                    return true;
-                }
-            }
+            // **NEW: Check for no-customer bookings at the same time (REMOVED - allows multiple bookings at same time)**
+            // if ((!customerName || customerName === 'Calendly Booking') && timeKey) {
+            //     const noCustomerKey = `calendly_no_customer_${timeKey}`;
+            //     console.log(`No-customer key ${noCustomerKey} already tracked as assigned`);
+            //     return true;
+            // }
 
             // **ENHANCED: More robust check using customer details and time**
             if (startTime) {
@@ -440,7 +438,7 @@ class CalendlyService {
                                 (!reservation.customerName || reservation.customerName === 'Calendly Booking') &&
                                 (!customerName || customerName === 'Calendly Booking');
                             
-                            if (sameCustomerSimilarTime || samePhoneSimilarTime || sameTimeNoCustomer) {
+                            if (sameCustomerSimilarTime || samePhoneSimilarTime) {
                                 console.log(`Found existing assignment for ${customerName || phoneNumber} at similar time`);
                                 console.log('Duplicate details:', {
                                     existing: {
@@ -547,21 +545,21 @@ class CalendlyService {
             console.log(`Marked as assigned: ${eventId} and ${uniqueKey}`);
         }
         
-        // Also track time-based key for exact time matching
-        const timeKey = this.createTimeKey(startTime);
-        if (timeKey) {
-            this.assignedEventIds.add(timeKey);
-            if (isPastEvent) this.assignedEventIds.add(`past_${timeKey}`);
-            console.log(`Marked time as assigned: ${timeKey}`);
-        }
+        // Also track time-based key for exact time matching (REMOVED - allows multiple bookings at same time)
+        // const timeKey = this.createTimeKey(startTime);
+        // if (timeKey) {
+        //     this.assignedEventIds.add(timeKey);
+        //     if (isPastEvent) this.assignedEventIds.add(`past_${timeKey}`);
+        //     console.log(`Marked time as assigned: ${timeKey}`);
+        // }
         
-        // Track no-customer bookings separately
-        if ((!customerName || customerName === 'Calendly Booking') && timeKey) {
-            const noCustomerKey = `calendly_no_customer_${timeKey}`;
-            this.assignedEventIds.add(noCustomerKey);
-            if (isPastEvent) this.assignedEventIds.add(`past_${noCustomerKey}`);
-            console.log(`Marked no-customer booking as assigned: ${noCustomerKey}`);
-        }
+        // Track no-customer bookings separately (REMOVED - allows multiple bookings at same time)
+        // if ((!customerName || customerName === 'Calendly Booking') && timeKey) {
+        //     const noCustomerKey = `calendly_no_customer_${timeKey}`;
+        //     this.assignedEventIds.add(noCustomerKey);
+        //     if (isPastEvent) this.assignedEventIds.add(`past_${noCustomerKey}`);
+        //     console.log(`Marked no-customer booking as assigned: ${noCustomerKey}`);
+        // }
 
         if (isPastEvent) {
             console.log(`🕒 Marked past event as assigned: ${customerName || 'Unknown'} at ${new Date(startTime).toLocaleString()}`);
@@ -600,21 +598,20 @@ class CalendlyService {
                             console.log(`Tracked existing local assignment: ${uniqueKey}`);
                         }
                         
-                        // Create time-based identifier for exact time matches
-                        const timeKey = this.createTimeKey(reservation.startTime);
-                        if (timeKey) {
-                            this.assignedEventIds.add(timeKey);
-                            if (isPastEvent) this.assignedEventIds.add(`past_${timeKey}`);
-                            console.log(`Tracked existing time-based assignment: ${timeKey}`);
-                        }
+                        // Create time-based identifier for exact time matches (REMOVED - allows multiple bookings at same time)
+                        // const timeKey = this.createTimeKey(reservation.startTime);
+                        // if (timeKey) {
+                        //     this.assignedEventIds.add(timeKey);
+                        //     if (isPastEvent) this.assignedEventIds.add(`past_${timeKey}`);
+                        //     console.log(`Tracked existing time-based assignment: ${timeKey}`);
+                        // }
                         
-                        // Create identifier for Calendly bookings without customer info
-                        if (!reservation.customerName || reservation.customerName === 'Calendly Booking') {
-                            const noCustomerKey = `calendly_no_customer_${timeKey}`;
-                            this.assignedEventIds.add(noCustomerKey);
-                            if (isPastEvent) this.assignedEventIds.add(`past_${noCustomerKey}`);
-                            console.log(`Tracked existing no-customer assignment: ${noCustomerKey}`);
-                        }
+                        // Create identifier for Calendly bookings without customer info (REMOVED - allows multiple bookings at same time)
+                        // if (!reservation.customerName || reservation.customerName === 'Calendly Booking') {
+                        //     const noCustomerKey = `calendly_no_customer_${timeKey}`;
+                        //     this.assignedEventIds.add(noCustomerKey);
+                        //     console.log(`Tracked existing no-customer assignment: ${noCustomerKey}`);
+                        // }
                         
                         // Also track any event IDs from notes if available
                         const notes = reservation.customerNotes || reservation.systemNotes || '';
@@ -663,19 +660,19 @@ class CalendlyService {
                             console.log(`Tracked existing Airtable assignment: ${uniqueKey}`);
                         }
                         
-                        // **NEW: 2. Create time-based identifier for exact time matches**
-                        const timeKey = this.createTimeKey(res.time);
-                        if (timeKey) {
-                            this.assignedEventIds.add(timeKey);
-                            console.log(`Tracked existing Airtable time assignment: ${timeKey}`);
-                        }
+                        // **NEW: 2. Create time-based identifier for exact time matches (REMOVED - allows multiple bookings at same time)**
+                        // const timeKey = this.createTimeKey(res.time);
+                        // if (timeKey) {
+                        //     this.assignedEventIds.add(timeKey);
+                        //     console.log(`Tracked existing Airtable time assignment: ${timeKey}`);
+                        // }
                         
-                        // **NEW: 3. Create identifier for Calendly bookings without customer info**
-                        if (!res.customerName || res.customerName === 'Calendly Booking') {
-                            const noCustomerKey = `calendly_no_customer_${timeKey}`;
-                            this.assignedEventIds.add(noCustomerKey);
-                            console.log(`Tracked existing Airtable no-customer assignment: ${noCustomerKey}`);
-                        }
+                        // **NEW: 3. Create identifier for Calendly bookings without customer info (REMOVED - allows multiple bookings at same time)**
+                        // if (!res.customerName || res.customerName === 'Calendly Booking') {
+                        //     const noCustomerKey = `calendly_no_customer_${timeKey}`;
+                        //     this.assignedEventIds.add(noCustomerKey);
+                        //     console.log(`Tracked existing Airtable no-customer assignment: ${noCustomerKey}`);
+                        // }
                         
                         // Also track event IDs from notes
                         const notes = res.customerNotes || res.systemNotes || '';
