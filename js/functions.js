@@ -708,10 +708,28 @@ function getStatusBadgeClass(status) {
 }
 
 // Intelligent Table Assignment for Calendly Bookings
-window.assignCalendlyBookingToTable = function(calendlyBooking) {
+window.assignCalendlyBookingToTable = async function(calendlyBooking) {
     console.log('🎯 Assigning Calendly booking:', calendlyBooking);
     
     const { startTime, endTime, pax, customerName, phoneNumber, duration } = calendlyBooking;
+    
+    // **NEW: Refresh table availability from Airtable before assignment to prevent conflicts**
+    if (window.airtableService) {
+        console.log('🔄 Refreshing table availability from Airtable before assignment...');
+        try {
+            // Clear cache and fetch fresh data
+            window.airtableService.cachedReservations = [];
+            window.airtableService.lastFetchTime = null;
+            
+            // Fetch fresh data from Airtable
+            if (window.fetchAndUpdateReservations) {
+                await window.fetchAndUpdateReservations();
+                console.log('✅ Table availability refreshed from Airtable');
+            }
+        } catch (refreshError) {
+            console.warn('⚠️ Could not refresh table availability, proceeding with current data:', refreshError);
+        }
+    }
     
     // Convert times to Date objects if they're strings
     const bookingStart = typeof startTime === 'string' ? new Date(startTime) : startTime;
@@ -826,14 +844,17 @@ window.assignCalendlyBookingToTable = function(calendlyBooking) {
     const availableTables = tables.filter(table => {
         // Check capacity
         if (table.capacity < pax) {
+            console.log(`❌ Table ${table.id} capacity ${table.capacity} < required ${pax}`);
             return false;
         }
         
         // Check time availability
         if (hasReservationConflict(table.id, bookingStart, bookingEnd)) {
+            console.log(`❌ Table ${table.id} has time conflict`);
             return false;
         }
         
+        console.log(`✅ Table ${table.id} is available (capacity: ${table.capacity}, no conflicts)`);
         return true;
     });
     
@@ -947,7 +968,7 @@ window.processCalendlyBookings = async function(calendlyBookings) {
     for (let i = 0; i < calendlyBookings.length; i++) {
         const booking = calendlyBookings[i];
         try {
-            const assignmentResult = assignCalendlyBookingToTable(booking);
+            const assignmentResult = await assignCalendlyBookingToTable(booking);
             
             if (assignmentResult.success) {
                 // Add reservation to the table locally first
