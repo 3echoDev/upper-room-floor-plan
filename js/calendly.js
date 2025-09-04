@@ -849,26 +849,11 @@ async function updateCalendlyBookings() {
                 // Check if this event has already been assigned
                 const eventId = event.uri;
                 
-                // **NEW: For group events, check if this specific invitee is already assigned**
+                // **NEW: For group events, we'll check assignment status for each invitee individually**
                 let isAlreadyAssigned = false;
                 if (event.invitees && event.invitees.length > 1) {
-                    // This is a group event - check if this specific invitee is assigned
-                    const inviteeIndex = event.invitees.findIndex(inv => 
-                        inv.name === customerName || 
-                        (inv.questions_and_answers && inv.questions_and_answers.some(qa => 
-                            qa.question.toLowerCase().includes('phone') && qa.answer === phoneNumber
-                        ))
-                    );
-                    if (inviteeIndex !== -1) {
-                        const groupEventId = `${eventId}_invitee_${inviteeIndex}`;
-                        isAlreadyAssigned = await calendlyService.isEventAlreadyAssigned(
-                            groupEventId, 
-                            customerName, 
-                            phoneNumber !== 'N/A' ? phoneNumber : null, 
-                            event.start_time
-                        );
-                        console.log(`🔍 Group event invitee ${inviteeIndex} (${customerName}) - already assigned: ${isAlreadyAssigned}`);
-                    }
+                    // For group events, we'll check each invitee individually during processing
+                    console.log(`🔍 Group event detected with ${event.invitees.length} invitees - will check assignment status for each invitee`);
                 } else {
                     // Regular single invitee event
                     isAlreadyAssigned = await calendlyService.isEventAlreadyAssigned(
@@ -906,38 +891,35 @@ async function updateCalendlyBookings() {
                     endTime: event.end_time
                 });
                 
+                // **NEW: Process each invitee as a separate booking for group events**
                 if (event.invitees && event.invitees.length > 0) {
+                    // For group events, we need to create a separate booking for each invitee
                     for (const invitee of event.invitees) {
                         const name = invitee.name || 'N/A';
                         const email = invitee.email || 'N/A';
                         
-                        console.log(`🔍 Processing invitee:`, {
-                            name: name,
-                            email: email,
-                            questions: invitee.questions_and_answers?.length || 0
-                        });
+                        console.log(`🔍 Processing invitee: ${name} from group event`);
                         
-                        // **NEW: For group events, use the specific invitee's name, not just the first one**
-                        if (customerName === 'Calendly Booking' && name !== 'N/A') {
-                            customerName = name;
-                            console.log(`✅ Set customer name to: ${customerName}`);
-                        }
+                        // **NEW: Create separate variables for each invitee**
+                        let inviteePhoneNumber = 'N/A';
+                        let inviteePaxCount = 2; // Default pax count
+                        let inviteeSpecialRequest = 'N/A';
                         
-                        // **NEW: Extract phone number from this specific invitee**
+                        // Extract phone number from this specific invitee
                         if (invitee.questions_and_answers) {
                             for (const qa of invitee.questions_and_answers) {
                                 const question = qa.question.toLowerCase();
                                 const answer = qa.answer || 'N/A';
                                 
                                 if (question.includes('phone') || question.includes('number')) {
-                                    phoneNumber = answer;
-                                    console.log(`✅ Set phone number to: ${phoneNumber} for ${name}`);
-                                    break; // Use the first phone number found for this invitee
+                                    inviteePhoneNumber = answer;
+                                    console.log(`✅ Set phone number to: ${inviteePhoneNumber} for ${name}`);
+                                    break;
                                 }
                             }
                         }
                         
-                        // Extract form responses (phone number already extracted above)
+                        // Extract form responses for this specific invitee
                         if (invitee.questions_and_answers) {
                             for (const qa of invitee.questions_and_answers) {
                                 const question = qa.question.toLowerCase();
@@ -946,14 +928,53 @@ async function updateCalendlyBookings() {
                                 if (question.includes('pax') || question.includes('guest') || question.includes('people')) {
                                     const extractedPax = parseInt(answer);
                                     if (!isNaN(extractedPax) && extractedPax > 0) {
-                                        paxCount = extractedPax;
+                                        inviteePaxCount = extractedPax;
                                     }
                                 } else if (question.includes('special') || question.includes('request') || question.includes('note')) {
-                                    specialRequest = answer;
+                                    inviteeSpecialRequest = answer;
                                 }
                             }
                         }
 
+                        // **NEW: Check if this specific invitee is already assigned**
+                        const inviteeIndex = event.invitees.indexOf(invitee);
+                        const groupEventId = `${eventId}_invitee_${inviteeIndex}`;
+                        const isInviteeAlreadyAssigned = await calendlyService.isEventAlreadyAssigned(
+                            groupEventId, 
+                            name, 
+                            inviteePhoneNumber !== 'N/A' ? inviteePhoneNumber : null, 
+                            event.start_time
+                        );
+                        
+                        if (isInviteeAlreadyAssigned) {
+                            console.log(`⏭️ Invitee ${inviteeIndex} (${name}) already assigned - skipping`);
+                            continue; // Skip this invitee
+                        }
+                        
+                        // **NEW: Create a separate booking for this invitee**
+                        const inviteeBooking = {
+                            eventId: groupEventId,
+                            startTime: new Date(event.start_time),
+                            endTime: new Date(event.end_time),
+                            pax: inviteePaxCount,
+                            customerName: name,
+                            phoneNumber: inviteePhoneNumber !== 'N/A' ? inviteePhoneNumber : null,
+                            specialRequest: inviteeSpecialRequest !== 'N/A' ? inviteeSpecialRequest : null,
+                            uniqueId: groupEventId
+                        };
+                        
+                        console.log(`📝 Created separate booking for invitee:`, {
+                            customerName: inviteeBooking.customerName,
+                            phoneNumber: inviteeBooking.phoneNumber,
+                            pax: inviteeBooking.pax,
+                            time: inviteeBooking.startTime.toLocaleString(),
+                            uniqueId: inviteeBooking.uniqueId
+                        });
+                        
+                        // **NEW: Add this invitee's booking to the assignment queue**
+                        bookingsForAssignment.push(inviteeBooking);
+                        
+                        // Build invitee details for display
                         inviteeDetails += `
                             <div class="mt-2 p-2 bg-light rounded">
                                 <div class="row g-2">
@@ -967,16 +988,16 @@ async function updateCalendlyBookings() {
                                     </div>
                                     <div class="col-md-6">
                                         <small class="text-muted d-block">
-                                            <i class="bi bi-telephone me-1"></i><strong>Phone:</strong> ${phoneNumber}
+                                            <i class="bi bi-telephone me-1"></i><strong>Phone:</strong> ${inviteePhoneNumber}
                                         </small>
                                         <small class="text-muted d-block">
-                                            <i class="bi bi-people me-1"></i><strong>Pax:</strong> ${paxCount}
+                                            <i class="bi bi-people me-1"></i><strong>Pax:</strong> ${inviteePaxCount}
                                         </small>
                                     </div>
-                                    ${specialRequest !== 'N/A' ? `
+                                    ${inviteeSpecialRequest !== 'N/A' ? `
                                         <div class="col-12">
                                             <small class="text-muted d-block">
-                                                <i class="bi bi-chat-text me-1"></i><strong>Special Request:</strong> ${specialRequest}
+                                                <i class="bi bi-chat-text me-1"></i><strong>Special Request:</strong> ${inviteeSpecialRequest}
                                             </small>
                                         </div>
                                     ` : ''}
@@ -984,6 +1005,183 @@ async function updateCalendlyBookings() {
                             </div>
                         `;
                     }
+                    
+                    // **NEW: Generate individual cards for each invitee (like before)**
+                    console.log(`✅ Processed ${event.invitees.length} invitees from group event - creating individual cards`);
+                    
+                    // Create individual cards for each invitee
+                    for (const invitee of event.invitees) {
+                        const name = invitee.name || 'N/A';
+                        const email = invitee.email || 'N/A';
+                        
+                        // Extract details for this specific invitee
+                        let inviteePhoneNumber = 'N/A';
+                        let inviteePaxCount = 2;
+                        let inviteeSpecialRequest = 'N/A';
+                        
+                        if (invitee.questions_and_answers) {
+                            for (const qa of invitee.questions_and_answers) {
+                                const question = qa.question.toLowerCase();
+                                const answer = qa.answer || 'N/A';
+                                
+                                if (question.includes('phone') || question.includes('number')) {
+                                    inviteePhoneNumber = answer;
+                                    break;
+                                }
+                            }
+                            
+                            for (const qa of invitee.questions_and_answers) {
+                                const question = qa.question.toLowerCase();
+                                const answer = qa.answer || 'N/A';
+                                
+                                if (question.includes('pax') || question.includes('guest') || question.includes('people')) {
+                                    const extractedPax = parseInt(answer);
+                                    if (!isNaN(extractedPax) && extractedPax > 0) {
+                                        inviteePaxCount = extractedPax;
+                                    }
+                                } else if (question.includes('special') || question.includes('request') || question.includes('note')) {
+                                    inviteeSpecialRequest = answer;
+                                }
+                            }
+                        }
+                        
+                        // Check if this specific invitee is already assigned
+                        const inviteeIndex = event.invitees.indexOf(invitee);
+                        const groupEventId = `${eventId}_invitee_${inviteeIndex}`;
+                        const isInviteeAlreadyAssigned = await calendlyService.isEventAlreadyAssigned(
+                            groupEventId, 
+                            name, 
+                            inviteePhoneNumber !== 'N/A' ? inviteePhoneNumber : null, 
+                            event.start_time
+                        );
+                        
+                        // Find assigned table for this invitee
+                        const assignedTable = tables.find(table => 
+                            table.reservations.some(res => 
+                                res.source === 'calendly' && 
+                                res.customerName === name &&
+                                Math.abs(new Date(res.startTime) - new Date(event.start_time)) < 300000
+                            )
+                        );
+                        
+                        // Generate assignment status
+                        let assignedTableInfo = '';
+                        if (isPastEvent) {
+                            assignedTableInfo = `
+                                <div class="d-flex align-items-center justify-content-between bg-secondary bg-opacity-10 rounded p-2">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-clock-history text-secondary me-2"></i>
+                                        <span class="text-secondary fw-bold">Past Reservation</span>
+                                    </div>
+                                    <small class="text-secondary">
+                                        ${Math.round((currentTime - eventStartTimeMs) / 60000)} min ago
+                                    </small>
+                                </div>
+                            `;
+                        } else if (assignedTable || isInviteeAlreadyAssigned) {
+                            assignedTableInfo = `
+                                <div class="d-flex align-items-center justify-content-between bg-success bg-opacity-10 rounded p-2">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-check-circle text-success me-2"></i>
+                                        <span class="text-success fw-bold">Table ${assignedTable ? assignedTable.id : 'Assigned'}</span>
+                                    </div>
+                                    <small class="text-success">
+                                        ${assignedTable ? `${assignedTable.capacity} pax capacity` : 'Assigned'}
+                                    </small>
+                                </div>
+                            `;
+                        } else {
+                            assignedTableInfo = `
+                                <div class="d-flex align-items-center justify-content-between bg-warning bg-opacity-10 rounded p-2">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-hourglass-split text-warning me-2"></i>
+                                        <span class="text-warning fw-bold">Auto-assigning...</span>
+                                    </div>
+                                    <div class="spinner-border spinner-border-sm text-warning" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        
+                        // Build individual card for this invitee
+                        const headerClass = isPastEvent ? 'bg-secondary' : 'bg-primary';
+                        const headerTextClass = isPastEvent ? 'text-white' : 'text-white';
+                        
+                        bookingsHtml += `
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card h-100 shadow-sm ${isPastEvent ? 'opacity-75' : ''}">
+                                    <div class="card-header ${headerClass} ${headerTextClass}">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0">
+                                                <i class="bi ${isPastEvent ? 'bi-clock-history' : 'bi-clock'} me-1"></i>
+                                                ${startDateTime.time} - ${endDateTime.time}
+                                            </h6>
+                                            <small class="opacity-75">${startDateTime.date}</small>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <h6 class="card-title text-primary mb-2">
+                                            <i class="bi bi-calendar-event me-1"></i>
+                                            ${event.name || 'Dine-In Reservation'}
+                                        </h6>
+                                        
+                                        <div class="row g-2 mb-3">
+                                            <div class="col-6">
+                                                <small class="text-muted d-block">
+                                                    <i class="bi bi-person me-1"></i><strong>Customer</strong>
+                                                </small>
+                                                <span class="fw-bold">${name}</span>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted d-block">
+                                                    <i class="bi bi-people me-1"></i><strong>Guests</strong>
+                                                </small>
+                                                <span class="fw-bold">${inviteePaxCount} pax</span>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row g-2 mb-3">
+                                            <div class="col-6">
+                                                <small class="text-muted d-block">
+                                                    <i class="bi bi-telephone me-1"></i><strong>Phone</strong>
+                                                </small>
+                                                <span class="fw-bold">${inviteePhoneNumber}</span>
+                                            </div>
+                                            <div class="col-6">
+                                                <small class="text-muted d-block">
+                                                    <i class="bi bi-hourglass-split me-1"></i><strong>Duration</strong>
+                                                </small>
+                                                <span class="fw-bold">${Math.round((new Date(event.end_time) - new Date(event.start_time)) / 60000)} min</span>
+                                            </div>
+                                        </div>
+                                        
+                                        ${inviteeSpecialRequest !== 'N/A' ? `
+                                            <div class="mb-3">
+                                                <small class="text-muted d-block">
+                                                    <i class="bi bi-chat-text me-1"></i><strong>Special Request</strong>
+                                                </small>
+                                                <span class="text-break">${inviteeSpecialRequest}</span>
+                                            </div>
+                                        ` : ''}
+                                        
+                                        <div class="mb-2">
+                                            <small class="text-muted d-block">
+                                                <i class="bi bi-info-circle me-1"></i><strong>System Note</strong>
+                                            </small>
+                                            <span class="text-muted small">${isPastEvent ? 'Past reservation - not reassigned after completion' : 'Automatically assigned from Calendly booking'}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="card-footer p-2">
+                                        ${assignedTableInfo}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    continue; // Skip to next event since we've already processed all invitees
                 }
 
                 // Check if this booking has been assigned to a table
@@ -1055,43 +1253,31 @@ async function updateCalendlyBookings() {
                         specialRequest: specialRequest !== 'N/A' ? specialRequest : null
                     };
                     
-                    // **NEW: For group events, create a unique identifier combining event ID and invitee details**
-                    if (event.invitees && event.invitees.length > 1) {
-                        // This is a group event - ensure unique identification
-                        const inviteeIndex = event.invitees.findIndex(inv => 
-                            inv.name === customerName || 
-                            (inv.questions_and_answers && inv.questions_and_answers.some(qa => 
-                                qa.question.toLowerCase().includes('phone') && qa.answer === phoneNumber
-                            ))
-                        );
-                        if (inviteeIndex !== -1) {
-                            bookingForAssignment.uniqueId = `${eventId}_invitee_${inviteeIndex}`;
-                            console.log(`🔍 Group event detected - created unique ID: ${bookingForAssignment.uniqueId}`);
-                        }
+                    // **NEW: Only handle single invitee events here (group events are handled above)**
+                    if (!event.invitees || event.invitees.length <= 1) {
+                    
+                        console.log(`📝 Adding single invitee booking to assignment queue:`, {
+                            customerName: bookingForAssignment.customerName,
+                            phoneNumber: bookingForAssignment.phoneNumber,
+                            pax: bookingForAssignment.pax,
+                            time: bookingForAssignment.startTime.toLocaleString(),
+                            eventId: bookingForAssignment.eventId
+                        });
+                        
+                        bookingsForAssignment.push(bookingForAssignment);
+                        
+                        assignedTableInfo = `
+                            <div class="d-flex align-items-center justify-content-between bg-warning bg-opacity-10 rounded p-2">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-hourglass-split text-warning me-2"></i>
+                                    <span class="text-warning fw-bold">Auto-assigning...</span>
+                                </div>
+                                <div class="spinner-border spinner-border-sm text-warning" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        `;
                     }
-                    
-                    console.log(`📝 Adding booking to assignment queue:`, {
-                        customerName: bookingForAssignment.customerName,
-                        phoneNumber: bookingForAssignment.phoneNumber,
-                        pax: bookingForAssignment.pax,
-                        time: bookingForAssignment.startTime.toLocaleString(),
-                        eventId: bookingForAssignment.eventId,
-                        uniqueId: bookingForAssignment.uniqueId || 'N/A'
-                    });
-                    
-                    bookingsForAssignment.push(bookingForAssignment);
-                    
-                    assignedTableInfo = `
-                        <div class="d-flex align-items-center justify-content-between bg-warning bg-opacity-10 rounded p-2">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-hourglass-split text-warning me-2"></i>
-                                <span class="text-warning fw-bold">Auto-assigning...</span>
-                            </div>
-                            <div class="spinner-border spinner-border-sm text-warning" role="status">
-                                <span class="visually-hidden">Loading...</span>
-                            </div>
-                        </div>
-                    `;
                 }
 
                 // Build the booking HTML as a card instead of list item
@@ -1502,6 +1688,12 @@ async function processCancelledCalendlyBookings() {
     // **NEW: Prevent interference with other Calendly functions**
     if (window.calendlyProcessingInProgress) {
         console.log('🔄 Another Calendly function is running, skipping processCancelledCalendlyBookings...');
+        return;
+    }
+    
+    // **NEW: Prevent cancellation processing during Calendly assignments**
+    if (window.calendlyAssignmentInProgress) {
+        console.log('🛡️ Calendly assignment in progress, skipping cancellation processing to prevent conflicts...');
         return;
     }
 

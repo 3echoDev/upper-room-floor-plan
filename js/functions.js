@@ -731,6 +731,11 @@ window.assignCalendlyBookingToTable = async function(calendlyBooking) {
         }
     }
     
+    // **NEW: Prevent any cancellation logic during Calendly assignment**
+    if (window.calendlyAssignmentInProgress) {
+        console.log('🛡️ Calendly assignment in progress - preventing any cancellation logic');
+    }
+    
     // Convert times to Date objects if they're strings
     const bookingStart = typeof startTime === 'string' ? new Date(startTime) : startTime;
     const bookingEnd = typeof endTime === 'string' ? new Date(endTime) : endTime;
@@ -973,9 +978,12 @@ window.processCalendlyBookings = async function(calendlyBookings) {
         try {
             // **NEW: Add delay between bookings to ensure proper table availability refresh**
             if (i > 0) {
-                console.log('⏳ Waiting 2 seconds before processing next booking...');
-                await new Promise(resolve => setTimeout(resolve, 2000));
+                console.log('⏳ Waiting 3 seconds before processing next booking...');
+                await new Promise(resolve => setTimeout(resolve, 3000));
             }
+            
+            // **NEW: Set a flag to prevent any cancellation logic during Calendly processing**
+            window.calendlyAssignmentInProgress = true;
             
             const assignmentResult = await assignCalendlyBookingToTable(booking);
             
@@ -1088,6 +1096,9 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                 error: error.message
             });
             results.summary.failed++;
+        } finally {
+            // **NEW: Clear the flag after each booking**
+            window.calendlyAssignmentInProgress = false;
         }
     }
     
