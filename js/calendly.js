@@ -848,12 +848,36 @@ async function updateCalendlyBookings() {
             try {
                 // Check if this event has already been assigned
                 const eventId = event.uri;
-                const isAlreadyAssigned = await calendlyService.isEventAlreadyAssigned(
-                    eventId, 
-                    event.name, 
-                    event.invitees && event.invitees.length > 0 ? event.invitees[0].phone : null, 
-                    event.start_time
-                );
+                
+                // **NEW: For group events, check if this specific invitee is already assigned**
+                let isAlreadyAssigned = false;
+                if (event.invitees && event.invitees.length > 1) {
+                    // This is a group event - check if this specific invitee is assigned
+                    const inviteeIndex = event.invitees.findIndex(inv => 
+                        inv.name === customerName || 
+                        (inv.questions_and_answers && inv.questions_and_answers.some(qa => 
+                            qa.question.toLowerCase().includes('phone') && qa.answer === phoneNumber
+                        ))
+                    );
+                    if (inviteeIndex !== -1) {
+                        const groupEventId = `${eventId}_invitee_${inviteeIndex}`;
+                        isAlreadyAssigned = await calendlyService.isEventAlreadyAssigned(
+                            groupEventId, 
+                            customerName, 
+                            phoneNumber !== 'N/A' ? phoneNumber : null, 
+                            event.start_time
+                        );
+                        console.log(`🔍 Group event invitee ${inviteeIndex} (${customerName}) - already assigned: ${isAlreadyAssigned}`);
+                    }
+                } else {
+                    // Regular single invitee event
+                    isAlreadyAssigned = await calendlyService.isEventAlreadyAssigned(
+                        eventId, 
+                        event.name, 
+                        event.invitees && event.invitees.length > 0 ? event.invitees[0].phone : null, 
+                        event.start_time
+                    );
+                }
                 
                 // **NEW: Check if this is a past event**
                 const eventStartTime = new Date(event.start_time);
@@ -877,7 +901,9 @@ async function updateCalendlyBookings() {
                 console.log(`🔍 Processing event ${eventId} - Raw event data:`, {
                     eventName: event.name,
                     invitees: event.invitees?.length || 0,
-                    inviteeNames: event.invitees?.map(inv => inv.name) || []
+                    inviteeNames: event.invitees?.map(inv => inv.name) || [],
+                    startTime: event.start_time,
+                    endTime: event.end_time
                 });
                 
                 if (event.invitees && event.invitees.length > 0) {
@@ -891,13 +917,13 @@ async function updateCalendlyBookings() {
                             questions: invitee.questions_and_answers?.length || 0
                         });
                         
-                        // Use the first invitee's name as customer name
+                        // **NEW: For group events, use the specific invitee's name, not just the first one**
                         if (customerName === 'Calendly Booking' && name !== 'N/A') {
                             customerName = name;
                             console.log(`✅ Set customer name to: ${customerName}`);
                         }
                         
-                        // Extract form responses
+                        // **NEW: Extract phone number from this specific invitee**
                         if (invitee.questions_and_answers) {
                             for (const qa of invitee.questions_and_answers) {
                                 const question = qa.question.toLowerCase();
@@ -905,7 +931,19 @@ async function updateCalendlyBookings() {
                                 
                                 if (question.includes('phone') || question.includes('number')) {
                                     phoneNumber = answer;
-                                } else if (question.includes('pax') || question.includes('guest') || question.includes('people')) {
+                                    console.log(`✅ Set phone number to: ${phoneNumber} for ${name}`);
+                                    break; // Use the first phone number found for this invitee
+                                }
+                            }
+                        }
+                        
+                        // Extract form responses (phone number already extracted above)
+                        if (invitee.questions_and_answers) {
+                            for (const qa of invitee.questions_and_answers) {
+                                const question = qa.question.toLowerCase();
+                                const answer = qa.answer || 'N/A';
+                                
+                                if (question.includes('pax') || question.includes('guest') || question.includes('people')) {
                                     const extractedPax = parseInt(answer);
                                     if (!isNaN(extractedPax) && extractedPax > 0) {
                                         paxCount = extractedPax;
@@ -976,7 +1014,23 @@ async function updateCalendlyBookings() {
                     `;
                 } else if (assignedTable || isAlreadyAssigned) {
                     // Mark as assigned in service
-                    calendlyService.markEventAsAssigned(eventId, customerName, phoneNumber, event.start_time);
+                    if (event.invitees && event.invitees.length > 1) {
+                        // Group event - use unique identifier
+                        const inviteeIndex = event.invitees.findIndex(inv => 
+                            inv.name === customerName || 
+                            (inv.questions_and_answers && inv.questions_and_answers.some(qa => 
+                                qa.question.toLowerCase().includes('phone') && qa.answer === phoneNumber
+                            ))
+                        );
+                        if (inviteeIndex !== -1) {
+                            const groupEventId = `${eventId}_invitee_${inviteeIndex}`;
+                            calendlyService.markEventAsAssigned(groupEventId, customerName, phoneNumber, event.start_time);
+                            console.log(`✅ Marked group event invitee ${inviteeIndex} (${customerName}) as assigned with ID: ${groupEventId}`);
+                        }
+                    } else {
+                        // Regular event
+                        calendlyService.markEventAsAssigned(eventId, customerName, phoneNumber, event.start_time);
+                    }
                     
                     assignedTableInfo = `
                         <div class="d-flex align-items-center justify-content-between bg-success bg-opacity-10 rounded p-2">
@@ -1001,12 +1055,28 @@ async function updateCalendlyBookings() {
                         specialRequest: specialRequest !== 'N/A' ? specialRequest : null
                     };
                     
+                    // **NEW: For group events, create a unique identifier combining event ID and invitee details**
+                    if (event.invitees && event.invitees.length > 1) {
+                        // This is a group event - ensure unique identification
+                        const inviteeIndex = event.invitees.findIndex(inv => 
+                            inv.name === customerName || 
+                            (inv.questions_and_answers && inv.questions_and_answers.some(qa => 
+                                qa.question.toLowerCase().includes('phone') && qa.answer === phoneNumber
+                            ))
+                        );
+                        if (inviteeIndex !== -1) {
+                            bookingForAssignment.uniqueId = `${eventId}_invitee_${inviteeIndex}`;
+                            console.log(`🔍 Group event detected - created unique ID: ${bookingForAssignment.uniqueId}`);
+                        }
+                    }
+                    
                     console.log(`📝 Adding booking to assignment queue:`, {
                         customerName: bookingForAssignment.customerName,
                         phoneNumber: bookingForAssignment.phoneNumber,
                         pax: bookingForAssignment.pax,
                         time: bookingForAssignment.startTime.toLocaleString(),
-                        eventId: bookingForAssignment.eventId
+                        eventId: bookingForAssignment.eventId,
+                        uniqueId: bookingForAssignment.uniqueId || 'N/A'
                     });
                     
                     bookingsForAssignment.push(bookingForAssignment);
@@ -1120,7 +1190,14 @@ async function updateCalendlyBookings() {
                 
                 // Mark successfully assigned events
                 assignmentResults.successful.forEach(result => {
-                    calendlyService.markEventAsAssigned(result.booking.eventId, result.booking.customerName, result.booking.phoneNumber, result.booking.startTime);
+                    if (result.booking.uniqueId) {
+                        // Group event - use unique identifier
+                        calendlyService.markEventAsAssigned(result.booking.uniqueId, result.booking.customerName, result.booking.phoneNumber, result.booking.startTime);
+                        console.log(`✅ Marked group event as assigned with unique ID: ${result.booking.uniqueId}`);
+                    } else {
+                        // Regular event
+                        calendlyService.markEventAsAssigned(result.booking.eventId, result.booking.customerName, result.booking.phoneNumber, result.booking.startTime);
+                    }
                 });
                 
                 console.log('Auto-assignment results:', assignmentResults);
