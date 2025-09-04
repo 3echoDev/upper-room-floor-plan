@@ -965,9 +965,18 @@ window.processCalendlyBookings = async function(calendlyBookings) {
         }
     };
     
+    // **NEW: Process bookings sequentially to prevent conflicts**
     for (let i = 0; i < calendlyBookings.length; i++) {
         const booking = calendlyBookings[i];
+        console.log(`🔄 Processing booking ${i + 1}/${calendlyBookings.length}: ${booking.customerName}`);
+        
         try {
+            // **NEW: Add delay between bookings to ensure proper table availability refresh**
+            if (i > 0) {
+                console.log('⏳ Waiting 2 seconds before processing next booking...');
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+            
             const assignmentResult = await assignCalendlyBookingToTable(booking);
             
             if (assignmentResult.success) {

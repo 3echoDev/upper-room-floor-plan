@@ -873,14 +873,28 @@ async function updateCalendlyBookings() {
                 let customerName = 'Calendly Booking';
                 let specialRequest = 'N/A';
                 
+                // **NEW: Debug logging for customer name extraction**
+                console.log(`🔍 Processing event ${eventId} - Raw event data:`, {
+                    eventName: event.name,
+                    invitees: event.invitees?.length || 0,
+                    inviteeNames: event.invitees?.map(inv => inv.name) || []
+                });
+                
                 if (event.invitees && event.invitees.length > 0) {
                     for (const invitee of event.invitees) {
                         const name = invitee.name || 'N/A';
                         const email = invitee.email || 'N/A';
                         
+                        console.log(`🔍 Processing invitee:`, {
+                            name: name,
+                            email: email,
+                            questions: invitee.questions_and_answers?.length || 0
+                        });
+                        
                         // Use the first invitee's name as customer name
                         if (customerName === 'Calendly Booking' && name !== 'N/A') {
                             customerName = name;
+                            console.log(`✅ Set customer name to: ${customerName}`);
                         }
                         
                         // Extract form responses
@@ -986,6 +1000,14 @@ async function updateCalendlyBookings() {
                         phoneNumber: phoneNumber !== 'N/A' ? phoneNumber : null,
                         specialRequest: specialRequest !== 'N/A' ? specialRequest : null
                     };
+                    
+                    console.log(`📝 Adding booking to assignment queue:`, {
+                        customerName: bookingForAssignment.customerName,
+                        phoneNumber: bookingForAssignment.phoneNumber,
+                        pax: bookingForAssignment.pax,
+                        time: bookingForAssignment.startTime.toLocaleString(),
+                        eventId: bookingForAssignment.eventId
+                    });
                     
                     bookingsForAssignment.push(bookingForAssignment);
                     
