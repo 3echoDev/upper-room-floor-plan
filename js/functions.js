@@ -833,15 +833,166 @@ window.assignCalendlyBookingToTable = async function(calendlyBooking) {
             6: ['D2'], // 6 pax: D2 only
         };
         
-        // For 7+ pax, use largest tables first, outdoor last
+        // For 7+ pax, return empty array to let combination logic handle it
         if (paxCount >= 7) {
-            return ['D1', 'D3', 'E1', 'E2'];
+            return [];
         }
         
         return rules[paxCount] || [];
     };
     
-    // Get priority list for this booking
+    // Helper function to find optimal table combination within a section
+    const findOptimalCombination = (sectionTables, requiredPax) => {
+        // Sort by capacity (largest first) to minimize number of tables needed
+        const sortedTables = sectionTables.sort((a, b) => b.capacity - a.capacity);
+        
+        const combination = [];
+        let totalCapacity = 0;
+        
+        for (const table of sortedTables) {
+            if (totalCapacity >= requiredPax) break;
+            combination.push(table);
+            totalCapacity += table.capacity;
+        }
+        
+        return totalCapacity >= requiredPax ? { tables: combination, totalCapacity } : null;
+    };
+
+    // Function to find best table combination for 7+ pax
+    const findBestTableCombination = (requiredPax, bookingStart, bookingEnd) => {
+        console.log(`🔍 Finding table combination for ${requiredPax} pax`);
+        
+        // Define sections with priority order: B(1) → C(2) → D(3) → E(4) → L(5)
+        const sections = {
+            B: {
+                priority: 1,
+                tables: ['B1', 'B2', 'B3', 'B4', 'B5'], // B1-B4: 4 pax each, B5: 2 pax
+                capacities: { 'B1': 4, 'B2': 4, 'B3': 4, 'B4': 4, 'B5': 2 }
+            },
+            C: {
+                priority: 2,
+                tables: ['C1', 'C3', 'C2', 'C4', 'C5', 'C6'], // C1,C3: 4 pax each, C2,C4,C5,C6: 2 pax each
+                capacities: { 'C1': 4, 'C3': 4, 'C2': 2, 'C4': 2, 'C5': 2, 'C6': 2 }
+            },
+            D: {
+                priority: 3,
+                tables: ['D1', 'D2', 'D3'], // All 6 pax each
+                capacities: { 'D1': 6, 'D2': 6, 'D3': 6 }
+            },
+            E: {
+                priority: 4,
+                tables: ['E1', 'E2'], // All 6 pax each
+                capacities: { 'E1': 6, 'E2': 6 }
+            },
+            L: {
+                priority: 5,
+                tables: ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8'], // All 4 pax each
+                capacities: { 'L1': 4, 'L2': 4, 'L3': 4, 'L4': 4, 'L5': 4, 'L6': 4, 'L7': 4, 'L8': 4 }
+            }
+        };
+        
+        // Try each section in priority order
+        for (const [sectionName, section] of Object.entries(sections).sort((a, b) => a[1].priority - b[1].priority)) {
+            console.log(`🔍 Trying section ${sectionName} (priority ${section.priority})`);
+            
+            // Get available tables in this section
+            const availableSectionTables = [];
+            for (const tableId of section.tables) {
+                const table = tables.find(t => t.id === tableId);
+                if (table && !hasReservationConflict(tableId, bookingStart, bookingEnd)) {
+                    availableSectionTables.push(table);
+                    console.log(`✅ Table ${tableId} available in section ${sectionName}`);
+                } else {
+                    console.log(`❌ Table ${tableId} not available in section ${sectionName}`);
+                }
+            }
+            
+            if (availableSectionTables.length === 0) {
+                console.log(`❌ No available tables in section ${sectionName}`);
+                continue;
+            }
+            
+            // Find optimal combination for this section
+            const combination = findOptimalCombination(availableSectionTables, requiredPax);
+            if (combination) {
+                console.log(`✅ Found combination in section ${sectionName}:`, 
+                    combination.tables.map(t => `${t.id}(${t.capacity})`).join(' + '),
+                    `= ${combination.totalCapacity} pax total`
+                );
+                return {
+                    success: true,
+                    tables: combination.tables,
+                    totalCapacity: combination.totalCapacity,
+                    section: sectionName,
+                    tableIds: combination.tables.map(t => t.id).join(', ')
+                };
+            } else {
+                console.log(`❌ Section ${sectionName} cannot accommodate ${requiredPax} pax`);
+            }
+        }
+        
+        console.log(`❌ No suitable table combination found for ${requiredPax} pax`);
+        return { success: false, error: `No suitable table combination found for ${requiredPax} pax` };
+    };
+
+    // Check if this is a 7+ pax booking that needs combination logic
+    if (pax >= 7) {
+        console.log(`🔗 Using combination logic for ${pax} pax booking`);
+        
+        const combinationResult = findBestTableCombination(pax, bookingStart, bookingEnd);
+        if (!combinationResult.success) {
+            return {
+                success: false,
+                error: combinationResult.error,
+                pax: pax,
+                time: bookingStart.toLocaleString()
+            };
+        }
+        
+        // Create reservation object for combination
+        const reservation = {
+            id: 'calendly_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+            tableId: combinationResult.tableIds, // Combined table IDs like "B1, B2"
+            source: 'calendly',
+            status: 'reserved',
+            pax: pax,
+            startTime: bookingStart.toISOString(),
+            endTime: bookingEnd.toISOString(),
+            duration: duration || Math.round((bookingEnd - bookingStart) / 60000),
+            customerName: customerName || 'Calendly Booking',
+            phoneNumber: phoneNumber || null,
+            customerNotes: null,
+            specialRequest: calendlyBooking.specialRequest || null,
+            systemNotes: `Automatically assigned from Calendly booking (combination: ${combinationResult.tableIds})`,
+            createdAt: new Date().toISOString()
+        };
+        
+        console.log('✅ Created combination reservation:', {
+            id: reservation.id,
+            tables: combinationResult.tableIds,
+            customer: reservation.customerName,
+            pax: reservation.pax,
+            totalCapacity: combinationResult.totalCapacity,
+            section: combinationResult.section,
+            time: reservation.startTime
+        });
+        
+        return {
+            success: true,
+            table: combinationResult.tables[0], // Primary table for compatibility
+            allTables: combinationResult.tables, // All tables in combination
+            reservation: reservation,
+            isCombination: true,
+            combinationInfo: {
+                tableIds: combinationResult.tableIds,
+                totalCapacity: combinationResult.totalCapacity,
+                section: combinationResult.section
+            },
+            message: `Assigned to combination: ${combinationResult.tableIds} (${combinationResult.totalCapacity} pax total capacity)`
+        };
+    }
+    
+    // For 1-6 pax, use existing single table logic
     const priorityList = getPriorityTables(pax);
     console.log(`📋 Priority list for ${pax} pax:`, priorityList);
     
@@ -952,6 +1103,7 @@ window.assignCalendlyBookingToTable = async function(calendlyBooking) {
         success: true,
         table: selectedTable,
         reservation: reservation,
+        isCombination: false,
         message: `Assigned to table ${selectedTable.id} (${selectedTable.capacity} pax capacity)`
     };
 };
@@ -988,13 +1140,26 @@ window.processCalendlyBookings = async function(calendlyBookings) {
             const assignmentResult = await assignCalendlyBookingToTable(booking);
             
             if (assignmentResult.success) {
-                // Add reservation to the table locally first
-                const table = tables.find(t => t.id === assignmentResult.table.id);
-                if (table) {
-                    table.reservations.push(assignmentResult.reservation);
-                    
-                    // Sort reservations by start time
-                    table.reservations.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+                // Handle local table assignment
+                if (assignmentResult.isCombination) {
+                    // For combinations: add reservation to each individual table
+                    console.log(`🔗 Adding combination reservation to multiple tables: ${assignmentResult.combinationInfo.tableIds}`);
+                    for (const table of assignmentResult.allTables) {
+                        const localTable = tables.find(t => t.id === table.id);
+                        if (localTable) {
+                            localTable.reservations.push(assignmentResult.reservation);
+                            // Sort reservations by start time
+                            localTable.reservations.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+                        }
+                    }
+                } else {
+                    // For single tables: add to one table as before
+                    const table = tables.find(t => t.id === assignmentResult.table.id);
+                    if (table) {
+                        table.reservations.push(assignmentResult.reservation);
+                        // Sort reservations by start time
+                        table.reservations.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+                    }
                 }
                 
                 // Save to Airtable with proper error handling
@@ -1002,9 +1167,14 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                     if (window.airtableService) {
                         console.log('Saving Calendly booking to Airtable...');
                         
+                        // **UPDATED: Use correct table ID for combinations vs single tables**
+                        const tableId = assignmentResult.isCombination 
+                            ? assignmentResult.reservation.tableId  // For combinations: "B1, B2"
+                            : assignmentResult.table.id;            // For single tables: "B1"
+                        
                         // **FIXED: Use correct field mapping to match walk-in reservation pattern**
                         const fields = {
-                            "Table": assignmentResult.table.id,
+                            "Table": tableId,
                             "Reservation Type": "Calendly", // Use proper Airtable value
                             "Status": "Reserved", // Map to proper Airtable status
                             "Pax": assignmentResult.reservation.pax.toString(),
@@ -1029,7 +1199,10 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                         }
                         
                         // Add system notes to track this is a Calendly booking
-                        fields["System Notes"] = `Automatically assigned from Calendly booking - Duration: ${assignmentResult.reservation.duration} minutes`;
+                        const systemNotes = assignmentResult.isCombination 
+                            ? `Automatically assigned from Calendly booking (combination: ${assignmentResult.combinationInfo.tableIds}) - Duration: ${assignmentResult.reservation.duration} minutes`
+                            : `Automatically assigned from Calendly booking - Duration: ${assignmentResult.reservation.duration} minutes`;
+                        fields["System Notes"] = systemNotes;
 
                         console.log('Saving to Airtable with fields:', fields); // Debug log
 
@@ -1038,14 +1211,32 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                         ]);
                         
                         // **CRITICAL: Update the local reservation with Airtable ID**
-                        const localReservation = table.reservations.find(r => r.id === assignmentResult.reservation.id);
-                        if (localReservation && result && result[0]) {
-                            localReservation.airtableId = result[0].id;
-                            // **IMPORTANT: Also update the reservation ID to match Airtable**
-                            localReservation.id = result[0].id;
-                            console.log(`✅ Calendly booking saved to Airtable with ID: ${result[0].id}`);
+                        if (assignmentResult.isCombination) {
+                            // For combinations: update all tables that have this reservation
+                            for (const table of assignmentResult.allTables) {
+                                const localTable = tables.find(t => t.id === table.id);
+                                if (localTable) {
+                                    const localReservation = localTable.reservations.find(r => r.id === assignmentResult.reservation.id);
+                                    if (localReservation && result && result[0]) {
+                                        localReservation.airtableId = result[0].id;
+                                        localReservation.id = result[0].id;
+                                    }
+                                }
+                            }
+                            console.log(`✅ Combination Calendly booking saved to Airtable with ID: ${result[0].id}`);
                         } else {
-                            console.warn('⚠️ Failed to link local reservation with Airtable record');
+                            // For single tables: update the one table
+                            const table = tables.find(t => t.id === assignmentResult.table.id);
+                            if (table) {
+                                const localReservation = table.reservations.find(r => r.id === assignmentResult.reservation.id);
+                                if (localReservation && result && result[0]) {
+                                    localReservation.airtableId = result[0].id;
+                                    localReservation.id = result[0].id;
+                                    console.log(`✅ Calendly booking saved to Airtable with ID: ${result[0].id}`);
+                                } else {
+                                    console.warn('⚠️ Failed to link local reservation with Airtable record');
+                                }
+                            }
                         }
                         
                         // **CRITICAL: Clear Airtable cache to ensure fresh data**
@@ -1059,9 +1250,22 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                     console.error('❌ CRITICAL: Failed to save Calendly booking to Airtable:', airtableError);
                     
                     // **IMPORTANT: Remove the local reservation if Airtable save fails**
-                    if (table) {
-                        table.reservations = table.reservations.filter(r => r.id !== assignmentResult.reservation.id);
-                        console.log('🗑️ Removed local reservation due to Airtable save failure');
+                    if (assignmentResult.isCombination) {
+                        // For combinations: remove from all tables
+                        for (const table of assignmentResult.allTables) {
+                            const localTable = tables.find(t => t.id === table.id);
+                            if (localTable) {
+                                localTable.reservations = localTable.reservations.filter(r => r.id !== assignmentResult.reservation.id);
+                            }
+                        }
+                        console.log('🗑️ Removed combination reservation from all tables due to Airtable save failure');
+                    } else {
+                        // For single tables: remove from one table
+                        const table = tables.find(t => t.id === assignmentResult.table.id);
+                        if (table) {
+                            table.reservations = table.reservations.filter(r => r.id !== assignmentResult.reservation.id);
+                            console.log('🗑️ Removed local reservation due to Airtable save failure');
+                        }
                     }
                     
                     // Mark this assignment as failed
@@ -1079,7 +1283,12 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                 });
                 results.summary.assigned++;
                 
-                console.log(`✅ Booking ${i + 1} assigned to table ${assignmentResult.table.id} and saved to Airtable`);
+                // Update success logging to show combination information
+                if (assignmentResult.isCombination) {
+                    console.log(`✅ Booking ${i + 1} assigned to combination ${assignmentResult.combinationInfo.tableIds} (${assignmentResult.combinationInfo.totalCapacity} pax total) and saved to Airtable`);
+                } else {
+                    console.log(`✅ Booking ${i + 1} assigned to table ${assignmentResult.table.id} and saved to Airtable`);
+                }
             } else {
                 results.failed.push({
                     booking: booking,

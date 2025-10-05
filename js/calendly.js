@@ -1055,14 +1055,34 @@ async function updateCalendlyBookings() {
                             event.start_time
                         );
                         
-                        // Find assigned table for this invitee
-                        const assignedTable = tables.find(table => 
-                            table.reservations.some(res => 
-                                res.source === 'calendly' && 
-                                res.customerName === name &&
-                                Math.abs(new Date(res.startTime) - new Date(event.start_time)) < 300000
-                            )
+                        // Find assigned table for this invitee (handle combinations)
+                        let assignedTable = null;
+                        let combinationInfo = null;
+                        
+                        // First, find the reservation
+                        const reservation = tables.flatMap(table => table.reservations).find(res => 
+                            res.source === 'calendly' && 
+                            res.customerName === name &&
+                            Math.abs(new Date(res.startTime) - new Date(event.start_time)) < 300000
                         );
+                        
+                        if (reservation) {
+                            // Check if this is a combination (tableId contains comma)
+                            if (reservation.tableId && reservation.tableId.includes(',')) {
+                                // This is a combination - show combination info
+                                combinationInfo = {
+                                    isCombination: true,
+                                    tableIds: reservation.tableId,
+                                    totalCapacity: reservation.tableId.split(',').map(id => {
+                                        const table = tables.find(t => t.id.trim() === id.trim());
+                                        return table ? table.capacity : 0;
+                                    }).reduce((sum, cap) => sum + cap, 0)
+                                };
+                            } else {
+                                // Single table assignment
+                                assignedTable = tables.find(table => table.id === reservation.tableId);
+                            }
+                        }
                         
                         // Generate assignment status
                         let assignedTableInfo = '';
@@ -1078,18 +1098,34 @@ async function updateCalendlyBookings() {
                                     </small>
                                 </div>
                             `;
-                        } else if (assignedTable || isInviteeAlreadyAssigned) {
-                            assignedTableInfo = `
-                                <div class="d-flex align-items-center justify-content-between bg-success bg-opacity-10 rounded p-2">
-                                    <div class="d-flex align-items-center">
-                                        <i class="bi bi-check-circle text-success me-2"></i>
-                                        <span class="text-success fw-bold">Table ${assignedTable ? assignedTable.id : 'Assigned'}</span>
+                        } else if (assignedTable || combinationInfo || isInviteeAlreadyAssigned) {
+                            if (combinationInfo) {
+                                // Show combination assignment
+                                assignedTableInfo = `
+                                    <div class="d-flex align-items-center justify-content-between bg-success bg-opacity-10 rounded p-2">
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-check-circle text-success me-2"></i>
+                                            <span class="text-success fw-bold">Combination ${combinationInfo.tableIds}</span>
+                                        </div>
+                                        <small class="text-success">
+                                            ${combinationInfo.totalCapacity} pax total capacity
+                                        </small>
                                     </div>
-                                    <small class="text-success">
-                                        ${assignedTable ? `${assignedTable.capacity} pax capacity` : 'Assigned'}
-                                    </small>
-                                </div>
-                            `;
+                                `;
+                            } else {
+                                // Show single table assignment
+                                assignedTableInfo = `
+                                    <div class="d-flex align-items-center justify-content-between bg-success bg-opacity-10 rounded p-2">
+                                        <div class="d-flex align-items-center">
+                                            <i class="bi bi-check-circle text-success me-2"></i>
+                                            <span class="text-success fw-bold">Table ${assignedTable ? assignedTable.id : 'Assigned'}</span>
+                                        </div>
+                                        <small class="text-success">
+                                            ${assignedTable ? `${assignedTable.capacity} pax capacity` : 'Assigned'}
+                                        </small>
+                                    </div>
+                                `;
+                            }
                         } else {
                             assignedTableInfo = `
                                 <div class="d-flex align-items-center justify-content-between bg-warning bg-opacity-10 rounded p-2">
@@ -1184,17 +1220,37 @@ async function updateCalendlyBookings() {
                     continue; // Skip to next event since we've already processed all invitees
                 }
 
-                // Check if this booking has been assigned to a table
+                // Check if this booking has been assigned to a table (handle combinations)
                 let assignedTableInfo = '';
-                const assignedTable = tables.find(table => 
-                    table.reservations.some(res => 
-                        res.source === 'calendly' && 
-                        (
-                            (res.customerName === customerName && Math.abs(new Date(res.startTime) - new Date(event.start_time)) < 300000) ||
-                            (phoneNumber !== 'N/A' && res.phoneNumber === phoneNumber && Math.abs(new Date(res.startTime) - new Date(event.start_time)) < 300000)
-                        )
+                let assignedTable = null;
+                let combinationInfo = null;
+                
+                // First, find the reservation
+                const reservation = tables.flatMap(table => table.reservations).find(res => 
+                    res.source === 'calendly' && 
+                    (
+                        (res.customerName === customerName && Math.abs(new Date(res.startTime) - new Date(event.start_time)) < 300000) ||
+                        (phoneNumber !== 'N/A' && res.phoneNumber === phoneNumber && Math.abs(new Date(res.startTime) - new Date(event.start_time)) < 300000)
                     )
                 );
+                
+                if (reservation) {
+                    // Check if this is a combination (tableId contains comma)
+                    if (reservation.tableId && reservation.tableId.includes(',')) {
+                        // This is a combination - show combination info
+                        combinationInfo = {
+                            isCombination: true,
+                            tableIds: reservation.tableId,
+                            totalCapacity: reservation.tableId.split(',').map(id => {
+                                const table = tables.find(t => t.id.trim() === id.trim());
+                                return table ? table.capacity : 0;
+                            }).reduce((sum, cap) => sum + cap, 0)
+                        };
+                    } else {
+                        // Single table assignment
+                        assignedTable = tables.find(table => table.id === reservation.tableId);
+                    }
+                }
 
                 if (isPastEvent) {
                     // **NEW: Past event - show as completed and don't try to assign**
@@ -1230,17 +1286,33 @@ async function updateCalendlyBookings() {
                         calendlyService.markEventAsAssigned(eventId, customerName, phoneNumber, event.start_time);
                     }
                     
-                    assignedTableInfo = `
-                        <div class="d-flex align-items-center justify-content-between bg-success bg-opacity-10 rounded p-2">
-                            <div class="d-flex align-items-center">
-                                <i class="bi bi-check-circle text-success me-2"></i>
-                                <span class="text-success fw-bold">Table ${assignedTable ? assignedTable.id : 'Assigned'}</span>
+                    if (combinationInfo) {
+                        // Show combination assignment
+                        assignedTableInfo = `
+                            <div class="d-flex align-items-center justify-content-between bg-success bg-opacity-10 rounded p-2">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    <span class="text-success fw-bold">Combination ${combinationInfo.tableIds}</span>
+                                </div>
+                                <small class="text-success">
+                                    ${combinationInfo.totalCapacity} pax total capacity
+                                </small>
                             </div>
-                            <small class="text-success">
-                                ${assignedTable ? `${assignedTable.capacity} pax capacity` : 'Assigned'}
-                            </small>
-                        </div>
-                    `;
+                        `;
+                    } else {
+                        // Show single table assignment
+                        assignedTableInfo = `
+                            <div class="d-flex align-items-center justify-content-between bg-success bg-opacity-10 rounded p-2">
+                                <div class="d-flex align-items-center">
+                                    <i class="bi bi-check-circle text-success me-2"></i>
+                                    <span class="text-success fw-bold">Table ${assignedTable ? assignedTable.id : 'Assigned'}</span>
+                                </div>
+                                <small class="text-success">
+                                    ${assignedTable ? `${assignedTable.capacity} pax capacity` : 'Assigned'}
+                                </small>
+                            </div>
+                        `;
+                    }
                 } else {
                     // **FIXED: This booking needs assignment - add to queue (only if not past)**
                     const bookingForAssignment = {
@@ -1408,7 +1480,13 @@ async function updateCalendlyBookings() {
                             customer: s.booking.customerName,
                             pax: s.booking.pax,
                             time: s.booking.startTime.toLocaleString(),
-                            assignedTable: s.assignment.table.id
+                            assignedTable: s.assignment.isCombination 
+                                ? s.assignment.combinationInfo.tableIds 
+                                : s.assignment.table.id,
+                            isCombination: s.assignment.isCombination,
+                            totalCapacity: s.assignment.isCombination 
+                                ? s.assignment.combinationInfo.totalCapacity 
+                                : s.assignment.table.capacity
                         })),
                         failed: assignmentResults.failed
                     });
