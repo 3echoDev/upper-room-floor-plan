@@ -374,6 +374,51 @@ window.addEventListener('load', function() {
     // Start the application
     initialize();
 
+	    // Log latest GitHub commit time and message to console (best-effort, no globals)
+	    (function logLatestCommit() {
+	    	try {
+	    		const host = location.host || '';
+	    		let owner = null;
+	    		let repo = null;
+	    		// Heuristic for GitHub Pages project sites: username.github.io/repo/
+	    		if (host.endsWith('github.io')) {
+	    			owner = host.split('.')[0];
+	    			const segs = (location.pathname || '/').split('/').filter(Boolean);
+	    			repo = segs.length > 0 ? segs[0] : null;
+	    		}
+	    		// Fallback repo name if custom domain or path doesn't reveal it
+	    		if (!repo) {
+	    			repo = 'upper-room-floor-plan';
+	    		}
+	    		// If owner cannot be inferred (custom domain), we can't reliably fetch
+	    		if (!owner) {
+	    			console.warn('[RepoInfo] Could not infer GitHub owner from host; skipping commit log');
+	    			return;
+	    		}
+	    		const commitsUrl = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits?per_page=1`;
+	    		fetch(commitsUrl, { headers: { 'Accept': 'application/vnd.github+json' } })
+	    			.then(r => r.json())
+	    			.then(list => {
+	    				const item = Array.isArray(list) ? list[0] : null;
+	    				if (!item || !item.commit) {
+	    					console.warn('[RepoInfo] No commit data available');
+	    					return;
+	    				}
+	    				const message = (item.commit.message || '').split('\n')[0];
+	    				const dateIso = item.commit.committer?.date || item.commit.author?.date || null;
+	    				const when = dateIso ? new Date(dateIso) : null;
+	    				if (when) {
+	    					console.log('[Commit]', when.toLocaleString(), '-', message);
+	    				} else {
+	    					console.log('[Commit]', '-', message);
+	    				}
+	    			})
+	    			.catch(err => console.warn('[RepoInfo] Failed to fetch latest commit:', err));
+	    	} catch (e) {
+	    		console.warn('[RepoInfo] Error logging commit info:', e);
+	    	}
+	    })();
+
     // Initial fetch and start periodic updates
     // Debug logging for Airtable data
     console.log('Starting initial reservation fetch...');
