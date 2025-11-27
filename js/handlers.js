@@ -171,18 +171,18 @@ async function fetchAndUpdateReservations() {
                 return;
             }
             
-            // **DEBUG: Log status values for debugging environment differences**
-            if (airtableRes.status && airtableRes.status.toLowerCase().includes('cancel')) {
-                console.log('🔍 DEBUGGING: Found cancelled reservation:', {
-                    id: airtableRes.id,
-                    customerName: airtableRes.customerName,
-                    status: airtableRes.status,
-                    statusType: typeof airtableRes.status,
-                    statusLower: airtableRes.status.toLowerCase(),
-                    tableId: airtableRes.tableId,
-                    environment: window.location.hostname
-                });
-            }
+            // **DEBUG: Log status values for debugging environment differences** - commented out for cleaner logs
+            // if (airtableRes.status && airtableRes.status.toLowerCase().includes('cancel')) {
+            //     console.log('🔍 DEBUGGING: Found cancelled reservation:', {
+            //         id: airtableRes.id,
+            //         customerName: airtableRes.customerName,
+            //         status: airtableRes.status,
+            //         statusType: typeof airtableRes.status,
+            //         statusLower: airtableRes.status.toLowerCase(),
+            //         tableId: airtableRes.tableId,
+            //         environment: window.location.hostname
+            //     });
+            // }
             
             // **ORIGINAL LOGIC: Only process reservations for today (for display only)**
             const resDate = new Date(airtableRes.time);
@@ -193,23 +193,17 @@ async function fetchAndUpdateReservations() {
                 resDate.getFullYear() === today.getFullYear();
                 
             if (!isSameDay) {
-                // **DEBUG: Log which reservations are being filtered from display**
-                if (airtableRes.reservationType && airtableRes.reservationType.toLowerCase().includes('phone')) {
-                    console.log('⚠️ PHONE CALL reservation filtered from display (different day):', {
-                        id: airtableRes.id,
-                        customerName: airtableRes.customerName,
-                        reservationType: airtableRes.reservationType,
-                        date: resDate.toLocaleDateString(),
-                        today: today.toLocaleDateString(),
-                        tableId: airtableRes.tableId
-                    });
-                } else {
-                    console.log('Skipping reservation from different day (not displayed):', {
-                        id: airtableRes.id,
-                        date: resDate.toLocaleDateString(),
-                        type: airtableRes.reservationType
-                    });
-                }
+                // Skipping reservation from different day (not displayed) - commented out for cleaner logs
+                // if (airtableRes.reservationType && airtableRes.reservationType.toLowerCase().includes('phone')) {
+                //     console.log('⚠️ PHONE CALL reservation filtered from display (different day):', {
+                //         id: airtableRes.id,
+                //         customerName: airtableRes.customerName,
+                //         reservationType: airtableRes.reservationType,
+                //         date: resDate.toLocaleDateString(),
+                //         today: today.toLocaleDateString(),
+                //         tableId: airtableRes.tableId
+                //     });
+                // }
                 return; // Skip for display, but data remains in Airtable
             }
             
@@ -217,14 +211,15 @@ async function fetchAndUpdateReservations() {
             if (airtableRes.status && 
                 (airtableRes.status.toLowerCase() === 'cancelled' || 
                  airtableRes.status.toLowerCase() === 'canceled')) {
-                console.log('🚫 Skipping cancelled reservation from display:', {
-                    id: airtableRes.id,
-                    customerName: airtableRes.customerName,
-                    status: airtableRes.status,
-                    statusLower: airtableRes.status.toLowerCase(),
-                    tableId: airtableRes.tableId,
-                    environment: window.location.hostname
-                });
+                // Skipping cancelled reservation from display - commented out for cleaner logs
+                // console.log('🚫 Skipping cancelled reservation from display:', {
+                //     id: airtableRes.id,
+                //     customerName: airtableRes.customerName,
+                //     status: airtableRes.status,
+                //     statusLower: airtableRes.status.toLowerCase(),
+                //     tableId: airtableRes.tableId,
+                //     environment: window.location.hostname
+                // });
                 return; // Skip cancelled reservations from display, but they remain in Airtable
             }
             

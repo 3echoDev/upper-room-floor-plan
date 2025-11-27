@@ -14,7 +14,7 @@ class CalendlyService {
                 this.assignedEventIds.add(eventId);
                 this.assignedEventIds.add(`past_${eventId}`);
             });
-            console.log(`Restored ${pastEvents.length} past event(s) from storage`);
+            // Restored past events from storage
         } catch (e) {
             console.warn('Failed to restore past events:', e);
         }
@@ -46,7 +46,6 @@ class CalendlyService {
             }
 
             const data = await response.json();
-            console.log('User data:', data);
             this.userUri = data.resource.uri; // Cache the full URI
             return data.resource;
         } catch (error) {
@@ -64,7 +63,6 @@ class CalendlyService {
         try {
             // Get user URI if not cached
             if (!this.userUri) {
-                console.log('Getting user URI...');
                 await this.getCurrentUser();
             }
 
@@ -84,7 +82,6 @@ class CalendlyService {
             });
 
             const url = `${this.baseUrl}/scheduled_events?${queryParams}`;
-            console.log('Fetching from URL:', url);
 
             const response = await fetch(url, {
                 headers: {
@@ -93,8 +90,6 @@ class CalendlyService {
                 }
             });
 
-            console.log('Response status:', response.status);
-
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('API Error:', response.status, errorText);
@@ -102,7 +97,6 @@ class CalendlyService {
             }
 
             const data = await response.json();
-            console.log('Fetched events:', data);
             return data.collection || [];
         } catch (error) {
             console.error('Error fetching Calendly events:', error);
@@ -120,7 +114,6 @@ class CalendlyService {
         try {
             // Get user URI if not cached
             if (!this.userUri) {
-                console.log('Getting user URI...');
                 await this.getCurrentUser();
             }
 
@@ -143,7 +136,6 @@ class CalendlyService {
             });
 
             const url = `${this.baseUrl}/scheduled_events?${queryParams}`;
-            console.log('Fetching future events from URL:', url);
 
             const response = await fetch(url, {
                 headers: {
@@ -152,8 +144,6 @@ class CalendlyService {
                 }
             });
 
-            console.log('Future events response status:', response.status);
-
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('Future events API Error:', response.status, errorText);
@@ -161,7 +151,6 @@ class CalendlyService {
             }
 
             const data = await response.json();
-            console.log('Fetched future events:', data);
             return data.collection || [];
         } catch (error) {
             console.error('Error fetching future Calendly events:', error);
@@ -177,7 +166,6 @@ class CalendlyService {
 
         try {
             const url = `${this.baseUrl}/scheduled_events/${eventUri.split('/').pop()}/invitees`;
-            console.log('Fetching invitees from URL:', url);
 
             const response = await fetch(url, {
                 headers: {
@@ -193,7 +181,6 @@ class CalendlyService {
             }
 
             const data = await response.json();
-            console.log('Fetched invitees:', data);
             return data.collection || [];
         } catch (error) {
             console.error('Error fetching event invitees:', error);
@@ -281,7 +268,6 @@ class CalendlyService {
         try {
             // Get user URI if not cached
             if (!this.userUri) {
-                console.log('Getting user URI for cancelled events...');
                 await this.getCurrentUser();
             }
 
@@ -304,7 +290,6 @@ class CalendlyService {
             });
 
             const url = `${this.baseUrl}/scheduled_events?${queryParams}`;
-            console.log('Fetching cancelled events from URL:', url);
 
             const response = await fetch(url, {
                 headers: {
@@ -313,8 +298,6 @@ class CalendlyService {
                 }
             });
 
-            console.log('Cancelled events response status:', response.status);
-
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('Cancelled events API Error:', response.status, errorText);
@@ -322,7 +305,6 @@ class CalendlyService {
             }
 
             const data = await response.json();
-            console.log('Fetched cancelled events:', data);
             return data.collection || [];
         } catch (error) {
             console.error('Error fetching cancelled Calendly events:', error);
@@ -343,11 +325,7 @@ class CalendlyService {
                 // If the event start time is more than 30 minutes in the past, consider it already assigned
                 const thirtyMinutesAgo = currentTime - (30 * 60 * 1000);
                 if (eventStartTime < thirtyMinutesAgo) {
-                    console.log(`⏰ PAST EVENT DETECTED: ${customerName || 'Unknown'} at ${eventTime.toLocaleString()}`);
-                    console.log(`Current time: ${now.toLocaleString()}`);
-                    console.log(`Event time: ${eventTime.toLocaleString()}`);
-                    console.log(`Time difference: ${Math.round((currentTime - eventStartTime) / 60000)} minutes`);
-                    console.log(`✅ Marking past event as already assigned to prevent re-assignment after staff deletion`);
+                    // Past event - skip silently
                     
                     // Mark this event as assigned AND past to prevent future processing
                     const pastEventKey = `past_${eventId}`;
@@ -384,14 +362,12 @@ class CalendlyService {
             
             // Check local tracking first by event ID
             if (this.assignedEventIds.has(eventId)) {
-                console.log(`Event ${eventId} already tracked as assigned`);
                 return true;
             }
 
             // Check by unique key based on customer details
             const uniqueKey = this.createUniqueKey(customerName, phoneNumber, startTime);
             if (uniqueKey && this.assignedEventIds.has(uniqueKey)) {
-                console.log(`Unique key ${uniqueKey} already tracked as assigned`);
                 return true;
             }
             
@@ -433,27 +409,7 @@ class CalendlyService {
                                 reservation.phoneNumber === phoneNumber && 
                                 timeDiff < 300000;
                             
-                            // **NEW: Check for Calendly bookings without customer info at same time**
-                            const sameTimeNoCustomer = exactTimeMatch && 
-                                (!reservation.customerName || reservation.customerName === 'Calendly Booking') &&
-                                (!customerName || customerName === 'Calendly Booking');
-                            
                             if (sameCustomerSimilarTime || samePhoneSimilarTime) {
-                                console.log(`Found existing assignment for ${customerName || phoneNumber} at similar time`);
-                                console.log('Duplicate details:', {
-                                    existing: {
-                                        customerName: reservation.customerName,
-                                        phoneNumber: reservation.phoneNumber,
-                                        time: reservation.startTime,
-                                        tableId: reservation.tableId
-                                    },
-                                    new: {
-                                        customerName: customerName,
-                                        phoneNumber: phoneNumber,
-                                        time: startTime
-                                    },
-                                    timeDiff: timeDiff / 1000 + ' seconds'
-                                });
                                 this.assignedEventIds.add(eventId);
                                 if (uniqueKey) this.assignedEventIds.add(uniqueKey);
                                 return true;
@@ -490,7 +446,6 @@ class CalendlyService {
                         });
 
                         if (duplicateReservation) {
-                            console.log(`Found duplicate in Airtable for ${customerName || phoneNumber}`);
                             this.assignedEventIds.add(eventId);
                             if (uniqueKey) this.assignedEventIds.add(uniqueKey);
                             return true;
@@ -542,7 +497,7 @@ class CalendlyService {
         if (uniqueKey) {
             this.assignedEventIds.add(uniqueKey);
             if (isPastEvent) this.assignedEventIds.add(`past_${uniqueKey}`);
-            console.log(`Marked as assigned: ${eventId} and ${uniqueKey}`);
+            // Event marked as assigned
         }
         
         // Also track time-based key for exact time matching (REMOVED - allows multiple bookings at same time)
@@ -562,14 +517,14 @@ class CalendlyService {
         // }
 
         if (isPastEvent) {
-            console.log(`🕒 Marked past event as assigned: ${customerName || 'Unknown'} at ${new Date(startTime).toLocaleString()}`);
+            // Past event marked as assigned
         }
     }
 
     // Load existing assignments from tables and Airtable to prevent duplicates
     async loadExistingAssignments() {
         try {
-            console.log('Loading existing Calendly assignments...');
+            // Loading existing Calendly assignments
             
             // Check local tables first
             for (const table of tables) {
@@ -595,7 +550,7 @@ class CalendlyService {
                         if (uniqueKey) {
                             this.assignedEventIds.add(uniqueKey);
                             if (isPastEvent) this.assignedEventIds.add(`past_${uniqueKey}`);
-                            console.log(`Tracked existing local assignment: ${uniqueKey}`);
+                            // Tracked existing local assignment
                         }
                         
                         // Create time-based identifier for exact time matches (REMOVED - allows multiple bookings at same time)
@@ -635,7 +590,7 @@ class CalendlyService {
                         }
                         
                         if (isPastEvent) {
-                            console.log(`🕒 Tracked past event: ${reservation.customerName || 'Unknown'} at ${new Date(startTime).toLocaleString()}`);
+                            // Tracked past event
                         }
                     }
                 }
@@ -657,7 +612,7 @@ class CalendlyService {
                         
                         if (uniqueKey) {
                             this.assignedEventIds.add(uniqueKey);
-                            console.log(`Tracked existing Airtable assignment: ${uniqueKey}`);
+                            // Tracked existing Airtable assignment
                         }
                         
                         // **NEW: 2. Create time-based identifier for exact time matches (REMOVED - allows multiple bookings at same time)**
@@ -684,7 +639,7 @@ class CalendlyService {
                 });
             }
             
-            console.log(`Loaded ${this.assignedEventIds.size} existing Calendly assignments`);
+            // Loaded existing Calendly assignments
         } catch (error) {
             console.error('Error loading existing assignments:', error);
         }
@@ -747,17 +702,15 @@ async function testCalendlyConnection() {
         
         // Test user endpoint first
         const user = await calendlyService.getCurrentUser();
-        console.log('✅ Successfully connected to Calendly');
-        console.log('User URI:', user.uri);
+        // Successfully connected to Calendly
         
         // Test events endpoint with enhanced details
         const events = await calendlyService.getEnhancedEvents();
-        console.log('✅ Successfully fetched enhanced events');
-        console.log(`Found ${events.length} events for today`);
+        // Successfully fetched enhanced events
         
         // Log sample event details for debugging
         if (events.length > 0) {
-            console.log('Sample event details:', events[0]);
+            // Sample event available
         }
         
         return true; // Indicate success
@@ -771,17 +724,18 @@ async function testCalendlyConnection() {
 async function updateCalendlyBookings() {
     // Add flag to prevent multiple simultaneous calls
     if (window.updateCalendlyBookingsInProgress) {
-        console.log('🔄 updateCalendlyBookings already in progress, skipping...');
+        // Update already in progress, skipping
         return;
     }
 
     // **NEW: Prevent interference with other Calendly functions**
     if (window.calendlyProcessingInProgress) {
-        console.log('🔄 Another Calendly function is running, skipping updateCalendlyBookings...');
+        // Another Calendly function is running, skipping
         return;
     }
 
     window.updateCalendlyBookingsInProgress = true;
+    // Note: We don't set calendlyProcessingInProgress here to allow future bookings to run
     window.calendlyProcessingInProgress = true;
     
     const bookingsContainer = document.getElementById('calendly-bookings');
@@ -818,10 +772,14 @@ async function updateCalendlyBookings() {
     }
 
     try {
-        console.log('Fetching Calendly events...');
+        const today = new Date();
+        const todayStr = `${today.getMonth() + 1}/${today.getDate()}`;
+        console.log(`\n📅 Bookings for ${todayStr} (today)`);
+        
         const events = await calendlyService.getEnhancedEvents();
         
         if (events.length === 0) {
+            console.log('   ✓ No bookings found');
             bookingsContainer.innerHTML = `
                 <div class="row">
                     <div class="col-12">
@@ -839,6 +797,8 @@ async function updateCalendlyBookings() {
             return;
         }
 
+        console.log(`   ✓ Found ${events.length} booking(s)`);
+
         let pastEventCount = 0;
 
         let bookingsHtml = '';
@@ -853,7 +813,6 @@ async function updateCalendlyBookings() {
                 let isAlreadyAssigned = false;
                 if (event.invitees && event.invitees.length > 1) {
                     // For group events, we'll check each invitee individually during processing
-                    console.log(`🔍 Group event detected with ${event.invitees.length} invitees - will check assignment status for each invitee`);
                 } else {
                     // Regular single invitee event
                     isAlreadyAssigned = await calendlyService.isEventAlreadyAssigned(
@@ -882,14 +841,7 @@ async function updateCalendlyBookings() {
                 let customerName = 'Calendly Booking';
                 let specialRequest = 'N/A';
                 
-                // **NEW: Debug logging for customer name extraction**
-                console.log(`🔍 Processing event ${eventId} - Raw event data:`, {
-                    eventName: event.name,
-                    invitees: event.invitees?.length || 0,
-                    inviteeNames: event.invitees?.map(inv => inv.name) || [],
-                    startTime: event.start_time,
-                    endTime: event.end_time
-                });
+                // Processing event data
                 
                 // **NEW: Process each invitee as a separate booking for group events**
                 if (event.invitees && event.invitees.length > 0) {
@@ -898,7 +850,7 @@ async function updateCalendlyBookings() {
                         const name = invitee.name || 'N/A';
                         const email = invitee.email || 'N/A';
                         
-                        console.log(`🔍 Processing invitee: ${name} from group event`);
+                        // Processing invitee from group event
                         
                         // **NEW: Create separate variables for each invitee**
                         let inviteePhoneNumber = 'N/A';
@@ -913,7 +865,6 @@ async function updateCalendlyBookings() {
                                 
                                 if (question.includes('phone') || question.includes('number')) {
                                     inviteePhoneNumber = answer;
-                                    console.log(`✅ Set phone number to: ${inviteePhoneNumber} for ${name}`);
                                     break;
                                 }
                             }
@@ -947,8 +898,8 @@ async function updateCalendlyBookings() {
                         );
                         
                         if (isInviteeAlreadyAssigned) {
-                            console.log(`⏭️ Invitee ${inviteeIndex} (${name}) already assigned - skipping`);
-                            continue; // Skip this invitee
+                            console.log(`   ✓ Already assigned: ${name} (${inviteePaxCount} pax) at ${new Date(event.start_time).toLocaleTimeString()}`);
+                            continue; // Skip this invitee - already assigned
                         }
                         
                         // **NEW: Create a separate booking for this invitee**
@@ -963,13 +914,7 @@ async function updateCalendlyBookings() {
                             uniqueId: groupEventId
                         };
                         
-                        console.log(`📝 Created separate booking for invitee:`, {
-                            customerName: inviteeBooking.customerName,
-                            phoneNumber: inviteeBooking.phoneNumber,
-                            pax: inviteeBooking.pax,
-                            time: inviteeBooking.startTime.toLocaleString(),
-                            uniqueId: inviteeBooking.uniqueId
-                        });
+                        // Created separate booking for invitee
                         
                         // **NEW: Add this invitee's booking to the assignment queue**
                         bookingsForAssignment.push(inviteeBooking);
@@ -1006,8 +951,7 @@ async function updateCalendlyBookings() {
                         `;
                     }
                     
-                    // **NEW: Generate individual cards for each invitee (like before)**
-                    console.log(`✅ Processed ${event.invitees.length} invitees from group event - creating individual cards`);
+                    // Processed invitees from group event
                     
                     // Create individual cards for each invitee
                     for (const invitee of event.invitees) {
@@ -1279,7 +1223,6 @@ async function updateCalendlyBookings() {
                         if (inviteeIndex !== -1) {
                             const groupEventId = `${eventId}_invitee_${inviteeIndex}`;
                             calendlyService.markEventAsAssigned(groupEventId, customerName, phoneNumber, event.start_time);
-                            console.log(`✅ Marked group event invitee ${inviteeIndex} (${customerName}) as assigned with ID: ${groupEventId}`);
                         }
                     } else {
                         // Regular event
@@ -1327,16 +1270,13 @@ async function updateCalendlyBookings() {
                     
                     // **NEW: Only handle single invitee events here (group events are handled above)**
                     if (!event.invitees || event.invitees.length <= 1) {
-                    
-                        console.log(`📝 Adding single invitee booking to assignment queue:`, {
-                            customerName: bookingForAssignment.customerName,
-                            phoneNumber: bookingForAssignment.phoneNumber,
-                            pax: bookingForAssignment.pax,
-                            time: bookingForAssignment.startTime.toLocaleString(),
-                            eventId: bookingForAssignment.eventId
-                        });
-                        
-                        bookingsForAssignment.push(bookingForAssignment);
+                        // Check if already assigned
+                        if (isAlreadyAssigned) {
+                            console.log(`   ✓ Already assigned: ${customerName} (${paxCount} pax) at ${startDateTime}`);
+                        } else {
+                            // Adding single invitee booking to assignment queue
+                            bookingsForAssignment.push(bookingForAssignment);
+                        }
                         
                         assignedTableInfo = `
                             <div class="d-flex align-items-center justify-content-between bg-warning bg-opacity-10 rounded p-2">
@@ -1439,7 +1379,7 @@ async function updateCalendlyBookings() {
 
         // Automatically assign unassigned bookings with priority rules (skip past events)
         if (bookingsForAssignment.length > 0) {
-            console.log(`Found ${bookingsForAssignment.length} unassigned Calendly bookings. Auto-assigning based on priority rules...`);
+            console.log(`\n🔄 Auto-assigning ${bookingsForAssignment.length} unassigned booking(s)...`);
             
             try {
                 // Process unassigned bookings with priority rules
@@ -1451,14 +1391,11 @@ async function updateCalendlyBookings() {
                     if (result.booking.uniqueId) {
                         // Group event - use unique identifier
                         calendlyService.markEventAsAssigned(result.booking.uniqueId, result.booking.customerName, result.booking.phoneNumber, result.booking.startTime);
-                        console.log(`✅ Marked group event as assigned with unique ID: ${result.booking.uniqueId}`);
                     } else {
                         // Regular event
                         calendlyService.markEventAsAssigned(result.booking.eventId, result.booking.customerName, result.booking.phoneNumber, result.booking.startTime);
                     }
                 });
-                
-                console.log('Auto-assignment results:', assignmentResults);
                 
                 // Update UI after processing all bookings
                 if (assignmentResults.summary.assigned > 0) {
@@ -1466,42 +1403,24 @@ async function updateCalendlyBookings() {
                     updateReservationCount();
                     updateFloorPlanTableStatuses();
                     
-                    // **FIXED: Don't recursively call updateCalendlyBookings() to prevent duplicate processing**
-                    // The UI will be updated by the periodic refresh and the initialize() call above
-                    console.log('✅ Calendly bookings processed successfully - UI updated without recursive call');
+                    // Log successful assignments
+                    assignmentResults.successful.forEach(s => {
+                        const tableInfo = s.assignment.isCombination 
+                            ? `tables ${s.assignment.combinationInfo.tableIds} (${s.assignment.combinationInfo.totalCapacity} pax)`
+                            : `table ${s.assignment.table.id} (${s.assignment.table.capacity} pax)`;
+                        console.log(`   ✓ Success: ${s.booking.customerName} (${s.booking.pax} pax) → ${tableInfo}`);
+                    });
                     
-                    // Show success message with more details
                     const successMessage = `Successfully assigned ${assignmentResults.summary.assigned} Calendly booking(s) to tables!`;
                     showSuccessMessage(successMessage);
-                    
-                    // Log detailed assignment information
-                    console.log('Assignment Summary:', {
-                        successful: assignmentResults.successful.map(s => ({
-                            customer: s.booking.customerName,
-                            pax: s.booking.pax,
-                            time: s.booking.startTime.toLocaleString(),
-                            assignedTable: s.assignment.isCombination 
-                                ? s.assignment.combinationInfo.tableIds 
-                                : s.assignment.table.id,
-                            isCombination: s.assignment.isCombination,
-                            totalCapacity: s.assignment.isCombination 
-                                ? s.assignment.combinationInfo.totalCapacity 
-                                : s.assignment.table.capacity
-                        })),
-                        failed: assignmentResults.failed
-                    });
                 }
                 
-                // Show summary for failed assignments
+                // Log failed assignments with reasons
                 if (assignmentResults.summary.failed > 0) {
-                    console.warn(`Failed to assign ${assignmentResults.summary.failed} booking(s)`);
-                    
-                    // Show detailed failure information
                     assignmentResults.failed.forEach(failure => {
-                        console.warn('Failed booking:', failure.booking, 'Error:', failure.error);
+                        console.log(`   ✗ Failed: ${failure.booking.customerName || 'Unknown'} (${failure.booking.pax} pax) - ${failure.error}`);
                     });
                     
-                    // Show user-friendly error message
                     const failedDetails = assignmentResults.failed.map(f => 
                         `${f.booking.customerName || 'Unknown'} (${f.booking.pax} pax) - ${f.error}`
                     ).join('\n');
@@ -1514,11 +1433,11 @@ async function updateCalendlyBookings() {
                 console.error('Error during automatic table assignment:', assignmentError);
             }
         } else {
-            console.log('All Calendly bookings are already assigned to tables.');
+            console.log('   ✓ All bookings already assigned');
         }
 
         // NEW: Also process cancelled bookings whenever we refresh the display
-        console.log('🔄 Processing cancelled Calendly bookings...');
+        // Processing cancelled Calendly bookings
         try {
             await processCancelledCalendlyBookings();
         } catch (cancelError) {
@@ -1611,7 +1530,7 @@ async function processFutureCalendlyBookings() {
     window.calendlyProcessingInProgress = true;
 
     try {
-        console.log('Processing future Calendly bookings...');
+        console.log('\n📅 Checking for future bookings...');
         
         // IMPORTANT: Load existing assignments first - this is what prevents duplicates
         await calendlyService.loadExistingAssignments();
@@ -1619,33 +1538,40 @@ async function processFutureCalendlyBookings() {
         const futureEvents = await calendlyService.getEnhancedFutureEvents();
         
         if (futureEvents.length === 0) {
-            console.log('No future Calendly bookings found.');
+            console.log('   ✓ No future bookings found');
             return;
         }
         
-        console.log(`Found ${futureEvents.length} future Calendly events to process.`);
+        // Group events by date
+        const eventsByDate = {};
+        futureEvents.forEach(event => {
+            const eventDate = new Date(event.start_time);
+            const dateStr = `${eventDate.getMonth() + 1}/${eventDate.getDate()}`;
+            if (!eventsByDate[dateStr]) {
+                eventsByDate[dateStr] = [];
+            }
+            eventsByDate[dateStr].push(event);
+        });
+        
+        // Process each date group
+        const sortedDates = Object.keys(eventsByDate).sort((a, b) => {
+            const [monthA, dayA] = a.split('/').map(Number);
+            const [monthB, dayB] = b.split('/').map(Number);
+            const dateA = new Date(new Date().getFullYear(), monthA - 1, dayA);
+            const dateB = new Date(new Date().getFullYear(), monthB - 1, dayB);
+            return dateA - dateB;
+        });
+        
         const futureBookingsForAssignment = [];
 
-        for (const event of futureEvents) {
+        for (const dateStr of sortedDates) {
+            const eventsForDate = eventsByDate[dateStr];
+            console.log(`\n📅 Bookings for ${dateStr}`);
+            console.log(`   ✓ Found ${eventsForDate.length} booking(s)`);
+            
+            for (const event of eventsForDate) {
             try {
-                // Check if this event has already been assigned
                 const eventId = event.uri;
-                const customerName = event.invitees?.[0]?.name || 'Calendly Booking';
-                const phoneNumber = event.invitees?.[0]?.questions_and_answers?.find(qa => 
-                    qa.question.toLowerCase().includes('phone'))?.answer || null;
-                
-                // Use the same duplicate check as today's bookings
-                const isAlreadyAssigned = await calendlyService.isEventAlreadyAssigned(
-                    eventId, 
-                    customerName,
-                    phoneNumber,
-                    event.start_time
-                );
-
-                if (isAlreadyAssigned) {
-                    console.log(`Skipping future booking - already assigned: ${customerName}`);
-                    continue;
-                }
                 
                 // **NEW: Check if this is a past event (for future bookings that might be in the past)**
                 const eventStartTime = new Date(event.start_time);
@@ -1656,17 +1582,35 @@ async function processFutureCalendlyBookings() {
                 const isPastEvent = eventStartTimeMs < thirtyMinutesAgo;
                 
                 if (isPastEvent) {
-                    console.log(`Skipping past future booking - event is in the past: ${customerName} at ${eventStartTime.toLocaleString()}`);
-                    continue;
+                    continue; // Past event - skip
                 }
-
-                // Get invitee details
-                let paxCount = 2; // Default pax count
-                let specialRequest = null;
                 
+                // **NEW: Process each invitee as a separate booking for group events (same as today's bookings)**
                 if (event.invitees && event.invitees.length > 0) {
+                    // For group events, we need to create a separate booking for each invitee
                     for (const invitee of event.invitees) {
-                        // Extract form responses
+                        const name = invitee.name || 'N/A';
+                        const email = invitee.email || 'N/A';
+                        
+                        // **NEW: Create separate variables for each invitee**
+                        let inviteePhoneNumber = 'N/A';
+                        let inviteePaxCount = 2; // Default pax count
+                        let inviteeSpecialRequest = 'N/A';
+                        
+                        // Extract phone number from this specific invitee
+                        if (invitee.questions_and_answers) {
+                            for (const qa of invitee.questions_and_answers) {
+                                const question = qa.question.toLowerCase();
+                                const answer = qa.answer || 'N/A';
+                                
+                                if (question.includes('phone') || question.includes('number')) {
+                                    inviteePhoneNumber = answer;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Extract form responses for this specific invitee
                         if (invitee.questions_and_answers) {
                             for (const qa of invitee.questions_and_answers) {
                                 const question = qa.question.toLowerCase();
@@ -1675,38 +1619,86 @@ async function processFutureCalendlyBookings() {
                                 if (question.includes('pax') || question.includes('guest') || question.includes('people')) {
                                     const extractedPax = parseInt(answer);
                                     if (!isNaN(extractedPax) && extractedPax > 0) {
-                                        paxCount = extractedPax;
+                                        inviteePaxCount = extractedPax;
                                     }
                                 } else if (question.includes('special') || question.includes('request') || question.includes('note')) {
-                                    specialRequest = answer !== 'N/A' ? answer : null;
+                                    inviteeSpecialRequest = answer !== 'N/A' ? answer : null;
                                 }
                             }
                         }
-                    }
-                }
 
-                // Add to queue for assignment
-                const bookingForAssignment = {
-                    eventId: eventId,
-                    startTime: new Date(event.start_time),
-                    endTime: new Date(event.end_time),
-                    pax: paxCount,
-                    customerName: customerName,
-                    phoneNumber: phoneNumber,
-                    specialRequest: specialRequest
-                };
-                
-                futureBookingsForAssignment.push(bookingForAssignment);
-                console.log(`Future booking queued for assignment: ${customerName}`);
+                        // **NEW: Check if this specific invitee is already assigned**
+                        const inviteeIndex = event.invitees.indexOf(invitee);
+                        const groupEventId = `${eventId}_invitee_${inviteeIndex}`;
+                        const isInviteeAlreadyAssigned = await calendlyService.isEventAlreadyAssigned(
+                            groupEventId, 
+                            name, 
+                            inviteePhoneNumber !== 'N/A' ? inviteePhoneNumber : null, 
+                            event.start_time
+                        );
+                        
+                        if (isInviteeAlreadyAssigned) {
+                            console.log(`   ✓ Already assigned: ${name} (${inviteePaxCount} pax) at ${new Date(event.start_time).toLocaleString()}`);
+                            continue; // Skip this invitee - already assigned
+                        }
+                        
+                        // **NEW: Create a separate booking for this invitee**
+                        const inviteeBooking = {
+                            eventId: groupEventId,
+                            startTime: new Date(event.start_time),
+                            endTime: new Date(event.end_time),
+                            pax: inviteePaxCount,
+                            customerName: name,
+                            phoneNumber: inviteePhoneNumber !== 'N/A' ? inviteePhoneNumber : null,
+                            specialRequest: inviteeSpecialRequest !== 'N/A' ? inviteeSpecialRequest : null,
+                            uniqueId: groupEventId
+                        };
+                        
+                        futureBookingsForAssignment.push(inviteeBooking);
+                    }
+                } else {
+                    // Single invitee event (fallback - should not happen often)
+                    const customerName = 'Calendly Booking';
+                    const phoneNumber = null;
+                    let paxCount = 2;
+                    let specialRequest = null;
+                    
+                    // Use the same duplicate check as today's bookings
+                    const isAlreadyAssigned = await calendlyService.isEventAlreadyAssigned(
+                        eventId, 
+                        customerName,
+                        phoneNumber,
+                        event.start_time
+                    );
+
+                    if (isAlreadyAssigned) {
+                        console.log(`   ✓ Already assigned: ${customerName} (${paxCount} pax) at ${new Date(event.start_time).toLocaleString()}`);
+                        continue; // Already assigned
+                    }
+                    
+                    // Add to queue for assignment
+                    const bookingForAssignment = {
+                        eventId: eventId,
+                        startTime: new Date(event.start_time),
+                        endTime: new Date(event.end_time),
+                        pax: paxCount,
+                        customerName: customerName,
+                        phoneNumber: phoneNumber,
+                        specialRequest: specialRequest
+                    };
+                    
+                    futureBookingsForAssignment.push(bookingForAssignment);
+                }
             } catch (eventError) {
                 console.error('Error processing individual future event:', eventError);
                 // Continue processing other future events
+            }
             }
         }
 
         // Automatically assign unassigned future bookings with priority rules
         if (futureBookingsForAssignment.length > 0) {
-            console.log(`Found ${futureBookingsForAssignment.length} unassigned future Calendly bookings. Auto-assigning...`);
+            console.log(`\n🔄 Auto-assigning ${futureBookingsForAssignment.length} unassigned future booking(s)...`);
             
             try {
                 // Process unassigned future bookings with proper duration calculation
@@ -1724,16 +1716,22 @@ async function processFutureCalendlyBookings() {
                     );
                 });
                 
-                console.log(`Successfully assigned ${futureAssignmentResults.summary.assigned} future Calendly booking(s)`);
-                
-                // Update reservations if assignments were made (NO UI refresh needed for future bookings)
+                // Log successful future assignments
                 if (futureAssignmentResults.summary.assigned > 0) {
+                    futureAssignmentResults.successful.forEach(s => {
+                        const tableInfo = s.assignment.isCombination 
+                            ? `tables ${s.assignment.combinationInfo.tableIds} (${s.assignment.combinationInfo.totalCapacity} pax)`
+                            : `table ${s.assignment.table.id} (${s.assignment.table.capacity} pax)`;
+                        console.log(`   ✓ Success: ${s.booking.customerName} (${s.booking.pax} pax) → ${tableInfo}`);
+                    });
                     updateReservationCount();
                 }
                 
-                // Log failed future assignments for debugging
+                // Log failed future assignments
                 if (futureAssignmentResults.summary.failed > 0) {
-                    console.warn(`Failed to assign ${futureAssignmentResults.summary.failed} future booking(s)`);
+                    futureAssignmentResults.failed.forEach(failure => {
+                        console.log(`   ✗ Failed: ${failure.booking.customerName || 'Unknown'} (${failure.booking.pax} pax) - ${failure.error}`);
+                    });
                 }
                 
                 return futureAssignmentResults;
@@ -1741,7 +1739,7 @@ async function processFutureCalendlyBookings() {
                 console.error('Error during future automatic table assignment:', futureAssignmentError);
             }
         } else {
-            console.log('All future Calendly bookings are already assigned.');
+            console.log('   ✓ All future bookings already assigned');
         }
     } catch (error) {
         console.error('Error processing future Calendly bookings:', error);
@@ -1765,37 +1763,41 @@ async function processCancelledCalendlyBookings() {
 
     // **NEW: Prevent interference with other Calendly functions**
     if (window.calendlyProcessingInProgress) {
-        console.log('🔄 Another Calendly function is running, skipping processCancelledCalendlyBookings...');
+        // Another Calendly function is running, skipping cancelled bookings (commented out for cleaner logs)
+        // console.log('🔄 Another Calendly function is running, skipping processCancelledCalendlyBookings...');
         return;
     }
     
     // **NEW: Prevent cancellation processing during Calendly assignments**
     if (window.calendlyAssignmentInProgress) {
-        console.log('🛡️ Calendly assignment in progress, skipping cancellation processing to prevent conflicts...');
+        // Calendly assignment in progress, skipping cancellation processing (commented out for cleaner logs)
+        // console.log('🛡️ Calendly assignment in progress, skipping cancellation processing to prevent conflicts...');
         return;
     }
 
     window.calendlyProcessingInProgress = true;
 
     try {
-        console.log('🚫 Processing cancelled Calendly bookings...');
+        // Processing cancelled Calendly bookings (commented out for cleaner logs)
+        // console.log('🚫 Processing cancelled Calendly bookings...');
         
         const cancelledEvents = await calendlyService.getCancelledEvents();
         
         if (cancelledEvents.length === 0) {
-            console.log('✅ No cancelled Calendly bookings found (this is normal).');
+            // No cancelled bookings found
             return;
         }
         
-        console.log(`📋 Found ${cancelledEvents.length} cancelled Calendly events to process.`);
+        // Found cancelled events (commented out for cleaner logs)
+        // console.log(`📋 Found ${cancelledEvents.length} cancelled Calendly events to process.`);
         
         let processedCount = 0;
         let skippedCount = 0;
         
         for (const event of cancelledEvents) {
             try {
-                // Debug: Log the full event object to see available fields
-                console.log('Processing cancelled event:', event);
+                // Processing cancelled event (commented out for cleaner logs)
+                // console.log('Processing cancelled event:', event);
                 
                 // Extract cancellation reason from event object
                 let cancellationReason = null;
@@ -1818,8 +1820,9 @@ async function processCancelledCalendlyBookings() {
                     cancelledBy = event.canceled_by;
                 }
                 
-                console.log('Extracted cancellation reason:', cancellationReason);
-                console.log('Cancelled by:', cancelledBy);
+                // Extracted cancellation details (commented out for cleaner logs)
+                // console.log('Extracted cancellation reason:', cancellationReason);
+                // console.log('Cancelled by:', cancelledBy);
                 
                 // Get invitee details
                 let customerName = 'Calendly Booking';
@@ -1869,7 +1872,8 @@ async function processCancelledCalendlyBookings() {
                 });
                 
                 if (!existingReservation) {
-                    console.log(`⚠️ No existing reservation found for cancelled event: ${customerName}`);
+                    // No existing reservation found for cancelled event (commented out for cleaner logs)
+                    // console.log(`⚠️ No existing reservation found for cancelled event: ${customerName}`);
                     skippedCount++;
                     continue;
                 }
@@ -1934,7 +1938,8 @@ async function processCancelledCalendlyBookings() {
         }
         
         // Show summary of processing results
-        console.log(`📊 Cancelled booking processing complete: ${processedCount} saved, ${skippedCount} skipped (already existed), ${cancelledEvents.length - processedCount - skippedCount} failed`);
+        // Cancelled booking processing complete (commented out for cleaner logs)
+        // console.log(`📊 Cancelled booking processing complete: ${processedCount} saved, ${skippedCount} skipped (already existed), ${cancelledEvents.length - processedCount - skippedCount} failed`);
         
     } catch (error) {
         console.error('Error processing cancelled Calendly bookings:', error);
@@ -1993,13 +1998,18 @@ window.addEventListener('load', async function() {
                 }
             }
             
-        updateCalendlyBookings();
+        await updateCalendlyBookings();
             
-            // NEW: Process future Calendly bookings
-            processFutureCalendlyBookings();
-            
-            // NEW: Process cancelled Calendly bookings
-            processCancelledCalendlyBookings();
+            // NEW: Process future Calendly bookings (after today's bookings complete)
+            // Wait a bit to ensure flags are cleared
+            setTimeout(() => {
+                processFutureCalendlyBookings().then(() => {
+                    // Process cancelled bookings AFTER future bookings complete
+                    setTimeout(() => {
+                        processCancelledCalendlyBookings();
+                    }, 500);
+                });
+            }, 1000);
             
             // Update every 5 minutes for real-time assignment
         setInterval(updateCalendlyBookings, 300000);
@@ -2010,7 +2020,7 @@ window.addEventListener('load', async function() {
             // NEW: Process cancelled bookings every 15 minutes
             setInterval(processCancelledCalendlyBookings, 900000);
             
-            console.log('Calendly integration initialized successfully - Auto-assignment enabled for today and future bookings');
+            console.log('Calendly integration initialized - Auto-assignment enabled');
     } else {
         console.error('Failed to initialize Calendly integration');
             const bookingsContainer = document.getElementById('calendly-bookings');

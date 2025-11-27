@@ -229,18 +229,20 @@ class AirtableService {
                     const result = [];
                     records.forEach(record => {
                         const tableField = record.get('Table');
-                        console.log('Processing record:', {
-                            id: record.id,
-                            table: tableField,
-                            time: record.get('DateandTime'),
-                            type: record.get('Reservation Type'),
-                            notes: record.get('Notes'),
-                            duration: record.get('Duration')
-                        });
+                        // Processing record (commented out for cleaner logs)
+                        // console.log('Processing record:', {
+                        //     id: record.id,
+                        //     table: tableField,
+                        //     time: record.get('DateandTime'),
+                        //     type: record.get('Reservation Type'),
+                        //     notes: record.get('Notes'),
+                        //     duration: record.get('Duration')
+                        // });
 
                         if (!tableField) return;
                         const tableIds = tableField.split(',').map(t => t.trim());
-                        console.log('Table IDs:', tableIds);
+                        // Table IDs (commented out for cleaner logs)
+                        // console.log('Table IDs:', tableIds);
 
                         // For each table in the combined reservation
                         tableIds.forEach(tableId => {

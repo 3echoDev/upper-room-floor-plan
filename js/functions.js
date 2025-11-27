@@ -709,13 +709,13 @@ function getStatusBadgeClass(status) {
 
 // Intelligent Table Assignment for Calendly Bookings
 window.assignCalendlyBookingToTable = async function(calendlyBooking) {
-    console.log('🎯 Assigning Calendly booking:', calendlyBooking);
+    // Assigning Calendly booking
     
     const { startTime, endTime, pax, customerName, phoneNumber, duration } = calendlyBooking;
     
     // **NEW: Refresh table availability from Airtable before assignment to prevent conflicts**
     if (window.airtableService) {
-        console.log('🔄 Refreshing table availability from Airtable before assignment...');
+        // Refreshing table availability from Airtable
         try {
             // Clear cache and fetch fresh data
             window.airtableService.cachedReservations = [];
@@ -733,7 +733,7 @@ window.assignCalendlyBookingToTable = async function(calendlyBooking) {
     
     // **NEW: Prevent any cancellation logic during Calendly assignment**
     if (window.calendlyAssignmentInProgress) {
-        console.log('🛡️ Calendly assignment in progress - preventing any cancellation logic');
+        // Calendly assignment in progress
     }
     
     // Convert times to Date objects if they're strings
@@ -754,11 +754,7 @@ window.assignCalendlyBookingToTable = async function(calendlyBooking) {
     // If the booking start time is more than 30 minutes in the past, don't assign it
     const thirtyMinutesAgo = currentTime - (30 * 60 * 1000);
     if (bookingStartTime < thirtyMinutesAgo) {
-        console.log(`⏰ PAST RESERVATION DETECTED: ${customerName || 'Unknown'} at ${bookingStart.toLocaleString()}`);
-        console.log(`Current time: ${now.toLocaleString()}`);
-        console.log(`Booking time: ${bookingStart.toLocaleString()}`);
-        console.log(`Time difference: ${Math.round((currentTime - bookingStartTime) / 60000)} minutes`);
-        console.log(`❌ Skipping past reservation to prevent re-assignment after staff deletion`);
+        // Past reservation detected - skipping
         
         return { 
             success: false, 
@@ -768,7 +764,7 @@ window.assignCalendlyBookingToTable = async function(calendlyBooking) {
     }
     
     // **IMPROVED: More thorough duplicate detection**
-    console.log('🔍 Checking for existing assignments...');
+    // Checking for existing assignments
     
     // Check local tables first
     for (const table of tables) {
@@ -860,7 +856,7 @@ window.assignCalendlyBookingToTable = async function(calendlyBooking) {
 
     // Function to find best table combination for 7+ pax
     const findBestTableCombination = (requiredPax, bookingStart, bookingEnd) => {
-        console.log(`🔍 Finding table combination for ${requiredPax} pax`);
+        // Finding table combination
         
         // Define sections with priority order: B(1) → C(2) → D(3) → E(4) → L(5)
         const sections = {
@@ -893,7 +889,7 @@ window.assignCalendlyBookingToTable = async function(calendlyBooking) {
         
         // Try each section in priority order
         for (const [sectionName, section] of Object.entries(sections).sort((a, b) => a[1].priority - b[1].priority)) {
-            console.log(`🔍 Trying section ${sectionName} (priority ${section.priority})`);
+            // Trying section
             
             // Get available tables in this section
             const availableSectionTables = [];
@@ -937,7 +933,7 @@ window.assignCalendlyBookingToTable = async function(calendlyBooking) {
 
     // Check if this is a 7+ pax booking that needs combination logic
     if (pax >= 7) {
-        console.log(`🔗 Using combination logic for ${pax} pax booking`);
+        // Using combination logic
         
         const combinationResult = findBestTableCombination(pax, bookingStart, bookingEnd);
         if (!combinationResult.success) {
@@ -1060,7 +1056,7 @@ window.assignCalendlyBookingToTable = async function(calendlyBooking) {
         });
         
         selectedTable = availableTables[0];
-        console.log(`🔄 Selected fallback table: ${selectedTable.id}`);
+        // Selected fallback table
     }
     
     if (!selectedTable) {
@@ -1110,8 +1106,6 @@ window.assignCalendlyBookingToTable = async function(calendlyBooking) {
 
 // Function to process multiple Calendly bookings
 window.processCalendlyBookings = async function(calendlyBookings) {
-    console.log('Processing Calendly bookings:', calendlyBookings);
-    
     const results = {
         successful: [],
         failed: [],
@@ -1125,12 +1119,10 @@ window.processCalendlyBookings = async function(calendlyBookings) {
     // **NEW: Process bookings sequentially to prevent conflicts**
     for (let i = 0; i < calendlyBookings.length; i++) {
         const booking = calendlyBookings[i];
-        console.log(`🔄 Processing booking ${i + 1}/${calendlyBookings.length}: ${booking.customerName}`);
         
         try {
             // **NEW: Add delay between bookings to ensure proper table availability refresh**
             if (i > 0) {
-                console.log('⏳ Waiting 3 seconds before processing next booking...');
                 await new Promise(resolve => setTimeout(resolve, 3000));
             }
             
@@ -1143,7 +1135,6 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                 // Handle local table assignment
                 if (assignmentResult.isCombination) {
                     // For combinations: add reservation to each individual table
-                    console.log(`🔗 Adding combination reservation to multiple tables: ${assignmentResult.combinationInfo.tableIds}`);
                     for (const table of assignmentResult.allTables) {
                         const localTable = tables.find(t => t.id === table.id);
                         if (localTable) {
@@ -1165,7 +1156,7 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                 // Save to Airtable with proper error handling
                 try {
                     if (window.airtableService) {
-                        console.log('Saving Calendly booking to Airtable...');
+                        // Saving Calendly booking to Airtable
                         
                         // **UPDATED: Use correct table ID for combinations vs single tables**
                         const tableId = assignmentResult.isCombination 
@@ -1223,7 +1214,7 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                                     }
                                 }
                             }
-                            console.log(`✅ Combination Calendly booking saved to Airtable with ID: ${result[0].id}`);
+                            // Combination booking saved to Airtable
                         } else {
                             // For single tables: update the one table
                             const table = tables.find(t => t.id === assignmentResult.table.id);
@@ -1232,7 +1223,7 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                                 if (localReservation && result && result[0]) {
                                     localReservation.airtableId = result[0].id;
                                     localReservation.id = result[0].id;
-                                    console.log(`✅ Calendly booking saved to Airtable with ID: ${result[0].id}`);
+                                    // Booking saved to Airtable
                                 } else {
                                     console.warn('⚠️ Failed to link local reservation with Airtable record');
                                 }
@@ -1285,9 +1276,9 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                 
                 // Update success logging to show combination information
                 if (assignmentResult.isCombination) {
-                    console.log(`✅ Booking ${i + 1} assigned to combination ${assignmentResult.combinationInfo.tableIds} (${assignmentResult.combinationInfo.totalCapacity} pax total) and saved to Airtable`);
+                    // Booking assigned to combination and saved
                 } else {
-                    console.log(`✅ Booking ${i + 1} assigned to table ${assignmentResult.table.id} and saved to Airtable`);
+                    // Booking assigned to table and saved
                 }
             } else {
                 results.failed.push({
@@ -1295,8 +1286,6 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                     error: assignmentResult.error
                 });
                 results.summary.failed++;
-                
-                console.log(`❌ Booking ${i + 1} failed: ${assignmentResult.error}`);
             }
         } catch (error) {
             console.error(`❌ Error processing booking ${i + 1}:`, error);
@@ -1314,7 +1303,7 @@ window.processCalendlyBookings = async function(calendlyBookings) {
     // **CRITICAL: Force refresh from Airtable after all assignments**
     if (results.summary.assigned > 0) {
         try {
-            console.log('🔄 Refreshing data from Airtable after Calendly assignments...');
+            // Refreshing data from Airtable after assignments
             
             // Clear cache and fetch fresh data
             if (window.airtableService) {
