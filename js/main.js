@@ -450,6 +450,48 @@ window.addEventListener('load', function() {
                 
                 // Force one final UI refresh to ensure everything is in sync
                 initialize();
+                
+                // **NEW: Auto-fix conflicts on page load**
+                // Wait for functions.js to load and reservations to be ready, then run conflict detection
+                const runConflictDetection = async () => {
+                    // Wait for the function to be available (functions.js loads after main.js)
+                    let attempts = 0;
+                    while (!window.detectAndFixConflicts && attempts < 10) {
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        attempts++;
+                    }
+                    
+                    // Also wait a bit more to ensure reservations are loaded
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    if (window.detectAndFixConflicts) {
+                        try {
+                            console.log('\n🔧 Running conflict detection on page load...');
+                            console.log('Tables with reservations:', tables.filter(t => t.reservations && t.reservations.length > 0).map(t => `${t.id}: ${t.reservations.length}`));
+                            const conflictResult = await window.detectAndFixConflicts();
+                            if (conflictResult && conflictResult.fixesApplied > 0) {
+                                // Refresh after fixes
+                                await fetchAndUpdateReservations();
+                                initialize();
+                                updateReservationCount();
+                                updateFloorPlanTableStatuses();
+                                console.log(`✅ Auto-fixed ${conflictResult.fixesApplied} conflict(s) on page load`);
+                            } else if (conflictResult && conflictResult.conflictsFound > 0) {
+                                console.warn(`⚠️ Found ${conflictResult.conflictsFound} conflict(s) but could not fix all of them`);
+                            } else if (conflictResult) {
+                                console.log('✅ No conflicts found');
+                            }
+                        } catch (conflictError) {
+                            console.error('⚠️ Error during conflict resolution on page load:', conflictError);
+                            console.error('Error details:', conflictError.stack);
+                        }
+                    } else {
+                        console.warn('⚠️ detectAndFixConflicts function not available - functions.js may not have loaded');
+                        console.log('Available window functions:', Object.keys(window).filter(k => k.includes('detect') || k.includes('conflict')));
+                    }
+                };
+                
+                setTimeout(runConflictDetection, 2000); // Wait 2 seconds after initial load
             }, 1000);
         });
     }, 500); // Short delay to ensure DOM is fully loaded

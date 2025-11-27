@@ -540,13 +540,14 @@ function hasReservationConflict(tableId, startTime, endTime) {
         return false;
     }
     
-    console.log(`Checking conflicts for table ${tableId}:`);
-    console.log('New reservation:', {
-        start: startTime.toISOString(),
-        end: endTime.toISOString(),
-        startTime: startTime.toLocaleTimeString(),
-        endTime: endTime.toLocaleTimeString()
-    });
+    // Checking conflicts (commented out for cleaner logs)
+    // console.log(`Checking conflicts for table ${tableId}:`);
+    // console.log('New reservation:', {
+    //     start: startTime.toISOString(),
+    //     end: endTime.toISOString(),
+    //     startTime: startTime.toLocaleTimeString(),
+    //     endTime: endTime.toLocaleTimeString()
+    // });
     
     // Validate input times
     if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
@@ -599,21 +600,7 @@ function hasReservationConflict(tableId, startTime, endTime) {
             const hasOverlap = startsInExisting || endsInExisting || containsExisting;
             
             if (hasOverlap) {
-                console.log('Conflict found with reservation:', {
-                    id: reservation.id,
-                    existing: {
-                        start: resStart.toISOString(),
-                        end: resEnd.toISOString(),
-                        startTime: resStart.toLocaleTimeString(),
-                        endTime: resEnd.toLocaleTimeString()
-                    },
-                    new: {
-                        start: startTime.toISOString(),
-                        end: endTime.toISOString(),
-                        startTime: startTime.toLocaleTimeString(),
-                        endTime: endTime.toLocaleTimeString()
-                    }
-                });
+                console.log(`⚠️ CONFLICT: Table ${tableId} already has booking at ${resStart.toLocaleTimeString()} - ${resEnd.toLocaleTimeString()}`);
             }
             
             return hasOverlap;
@@ -624,7 +611,11 @@ function hasReservationConflict(tableId, startTime, endTime) {
     });
     
     const hasConflicts = conflicts.length > 0;
-    console.log(`Conflict check result: ${hasConflicts ? 'CONFLICT FOUND' : 'NO CONFLICTS'}`);
+    
+    // Conflict check result (commented out for cleaner logs, but show if conflict found)
+    if (hasConflicts) {
+        console.log(`⚠️ CONFLICT DETECTED: Table ${tableId} has ${conflicts.length} conflicting reservation(s)`);
+    }
     
     return hasConflicts;
 }
@@ -713,23 +704,9 @@ window.assignCalendlyBookingToTable = async function(calendlyBooking) {
     
     const { startTime, endTime, pax, customerName, phoneNumber, duration } = calendlyBooking;
     
-    // **NEW: Refresh table availability from Airtable before assignment to prevent conflicts**
-    if (window.airtableService) {
-        // Refreshing table availability from Airtable
-        try {
-            // Clear cache and fetch fresh data
-            window.airtableService.cachedReservations = [];
-            window.airtableService.lastFetchTime = null;
-            
-            // Fetch fresh data from Airtable
-            if (window.fetchAndUpdateReservations) {
-                await window.fetchAndUpdateReservations();
-                console.log('✅ Table availability refreshed from Airtable');
-            }
-        } catch (refreshError) {
-            console.warn('⚠️ Could not refresh table availability, proceeding with current data:', refreshError);
-        }
-    }
+    // **REMOVED: Refresh at start causes conflicts - local tables array is updated immediately after each assignment**
+    // The conflict check uses the local tables array which already has the previous assignments
+    // We refresh at the end of all assignments instead
     
     // **NEW: Prevent any cancellation logic during Calendly assignment**
     if (window.calendlyAssignmentInProgress) {
@@ -819,6 +796,7 @@ window.assignCalendlyBookingToTable = async function(calendlyBooking) {
     // before this function is called. This avoids duplicate API calls.**
     
     // Define priority rules based on pax count
+    // Helper function to get priority tables for a given pax count (made accessible for conflict resolution)
     const getPriorityTables = (paxCount) => {
         const rules = {
             1: ['C5', 'C7'], // 1 pax: C5 first, then C7
@@ -836,6 +814,9 @@ window.assignCalendlyBookingToTable = async function(calendlyBooking) {
         
         return rules[paxCount] || [];
     };
+    
+    // Make getPriorityTables accessible globally for conflict resolution
+    window.getPriorityTables = getPriorityTables;
     
     // Helper function to find optimal table combination within a section
     const findOptimalCombination = (sectionTables, requiredPax) => {
@@ -1001,12 +982,14 @@ window.assignCalendlyBookingToTable = async function(calendlyBooking) {
         }
         
         // Check time availability
-        if (hasReservationConflict(table.id, bookingStart, bookingEnd)) {
-            console.log(`❌ Table ${table.id} has time conflict`);
+        const hasConflict = hasReservationConflict(table.id, bookingStart, bookingEnd);
+        if (hasConflict) {
+            console.log(`❌ Table ${table.id} has time conflict - skipping`);
             return false;
         }
         
-        console.log(`✅ Table ${table.id} is available (capacity: ${table.capacity}, no conflicts)`);
+        // Table is available (commented out for cleaner logs)
+        // console.log(`✅ Table ${table.id} is available (capacity: ${table.capacity}, no conflicts)`);
         return true;
     });
     
@@ -1130,6 +1113,9 @@ window.processCalendlyBookings = async function(calendlyBookings) {
             window.calendlyAssignmentInProgress = true;
             
             const assignmentResult = await assignCalendlyBookingToTable(booking);
+            
+            // **CRITICAL: Wait for Airtable save to complete before processing next booking**
+            // This ensures the previous assignment is in Airtable before conflict checking
             
             if (assignmentResult.success) {
                 // Handle local table assignment
@@ -1319,6 +1305,24 @@ window.processCalendlyBookings = async function(calendlyBookings) {
             updateReservationCount();
             updateFloorPlanTableStatuses();
             
+            // **NEW: Auto-fix any conflicts after assignments**
+            if (window.detectAndFixConflicts) {
+                try {
+                    console.log('\n🔧 Running conflict detection after assignments...');
+                    const conflictResult = await window.detectAndFixConflicts();
+                    if (conflictResult.fixesApplied > 0) {
+                        // Refresh again after fixes
+                        await fetchAndUpdateReservations();
+                        initialize();
+                        updateReservationCount();
+                        updateFloorPlanTableStatuses();
+                        console.log(`✅ Auto-fixed ${conflictResult.fixesApplied} conflict(s)`);
+                    }
+                } catch (conflictError) {
+                    console.error('⚠️ Error during conflict resolution:', conflictError);
+                }
+            }
+            
             // Show success message with more details
             const successMessage = `Successfully assigned ${results.summary.assigned} Calendly booking(s) to tables and saved to Airtable!`;
             showSuccessMessage(successMessage);
@@ -1359,6 +1363,245 @@ window.processCalendlyBookings = async function(calendlyBookings) {
     
     return results;
 };
+
+// Auto-fix conflicts: Detect and resolve overlapping reservations on the same table
+window.detectAndFixConflicts = async function() {
+    console.log('\n🔍 Starting conflict detection and auto-fix...');
+    console.log('Current tables state:', tables.map(t => ({ id: t.id, reservations: t.reservations.length })));
+    
+    const fixes = [];
+    const conflicts = [];
+    
+    // Step 1: Find all conflicts
+    // First, ensure we have reservations loaded
+    if (!tables || tables.length === 0) {
+        console.log('⚠️ No tables found - cannot detect conflicts');
+        return { success: false, error: 'No tables found' };
+    }
+    
+    for (const table of tables) {
+        if (!table.reservations || table.reservations.length < 2) continue;
+        
+        // Sort reservations by start time
+        const sortedReservations = [...table.reservations].sort((a, b) => 
+            new Date(a.startTime) - new Date(b.startTime)
+        );
+        
+        // Check each reservation against all others on the same table
+        for (let i = 0; i < sortedReservations.length; i++) {
+            const reservation1 = sortedReservations[i];
+            const start1 = new Date(reservation1.startTime);
+            const end1 = new Date(reservation1.endTime || new Date(start1.getTime() + (reservation1.duration || 60) * 60000));
+            
+            // Skip invalid dates
+            if (isNaN(start1.getTime()) || isNaN(end1.getTime())) continue;
+            
+            for (let j = i + 1; j < sortedReservations.length; j++) {
+                const reservation2 = sortedReservations[j];
+                const start2 = new Date(reservation2.startTime);
+                const end2 = new Date(reservation2.endTime || new Date(start2.getTime() + (reservation2.duration || 60) * 60000));
+                
+                // Skip invalid dates
+                if (isNaN(start2.getTime()) || isNaN(end2.getTime())) continue;
+                
+                // Check for overlap
+                const hasOverlap = (start1 < end2 && end1 > start2);
+                
+                if (hasOverlap) {
+                    conflicts.push({
+                        tableId: table.id,
+                        reservation1: reservation1,
+                        reservation2: reservation2,
+                        start1: start1,
+                        end1: end1,
+                        start2: start2,
+                        end2: end2
+                    });
+                }
+            }
+        }
+    }
+    
+    if (conflicts.length === 0) {
+        console.log('✅ No conflicts found - all reservations are properly assigned!');
+        return { success: true, conflictsFound: 0, fixesApplied: 0, fixes: [] };
+    }
+    
+    console.log(`⚠️ Found ${conflicts.length} conflict(s) to resolve`);
+    
+    // Step 2: Fix each conflict by reassigning one reservation
+    for (const conflict of conflicts) {
+        const { tableId, reservation1, reservation2, start1, end1, start2, end2 } = conflict;
+        
+        // Determine which reservation to move (prefer moving the later one, or Calendly bookings)
+        let reservationToMove = reservation2; // Default: move the later one
+        let reservationToKeep = reservation1;
+        let moveStart = start2;
+        let moveEnd = end2;
+        let movePax = reservation2.pax || 2;
+        
+        // Prefer moving Calendly bookings over phone call reservations
+        if (reservation1.source === 'calendly' && reservation2.source !== 'calendly') {
+            reservationToMove = reservation1;
+            reservationToKeep = reservation2;
+            moveStart = start1;
+            moveEnd = end1;
+            movePax = reservation1.pax || 2;
+        }
+        
+        console.log(`\n🔧 Fixing conflict on table ${tableId}:`);
+        console.log(`   Keeping: ${reservationToKeep.customerName || 'Unknown'} (${reservationToKeep.pax || '?'} pax) at ${new Date(reservationToKeep.startTime).toLocaleString()}`);
+        console.log(`   Moving: ${reservationToMove.customerName || 'Unknown'} (${movePax} pax) at ${new Date(reservationToMove.startTime).toLocaleString()}`);
+        
+        // Get priority tables function (use global if available, otherwise fallback)
+        const getPriorityTables = window.getPriorityTables || ((pax) => {
+            const rules = {
+                1: ['C5', 'C7'], 2: ['C5', 'C7'], 3: ['C3', 'L1', 'L2', 'B2', 'B1'],
+                4: ['C3', 'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'B2', 'B1'],
+                5: ['D2'], 6: ['D2']
+            };
+            return pax >= 7 ? [] : (rules[pax] || []);
+        });
+        
+        // Find an available table for the reservation to move
+        const priorityList = getPriorityTables(movePax);
+        
+        // Filter available tables
+        const availableTables = tables.filter(table => {
+            // Check capacity
+            if (table.capacity < movePax) return false;
+            
+            // Check time availability (exclude the table we're moving from)
+            if (table.id === tableId) return false;
+            
+            // Check for conflicts
+            if (hasReservationConflict(table.id, moveStart, moveEnd)) return false;
+            
+            return true;
+        });
+        
+        if (availableTables.length === 0) {
+            console.log(`   ❌ No available table found for ${reservationToMove.customerName || 'Unknown'}`);
+            fixes.push({
+                success: false,
+                conflict: conflict,
+                error: 'No available table found'
+            });
+            continue;
+        }
+        
+        // Find the best table according to priority
+        let selectedTable = null;
+        for (const tableId of priorityList) {
+            const table = availableTables.find(t => t.id === tableId);
+            if (table) {
+                selectedTable = table;
+                break;
+            }
+        }
+        
+        // If no priority table, choose the smallest available
+        if (!selectedTable) {
+            availableTables.sort((a, b) => {
+                if (a.capacity !== b.capacity) return a.capacity - b.capacity;
+                const aIsOutdoor = a.id.startsWith('E');
+                const bIsOutdoor = b.id.startsWith('E');
+                if (aIsOutdoor && !bIsOutdoor) return 1;
+                if (!aIsOutdoor && bIsOutdoor) return -1;
+                return a.id.localeCompare(b.id);
+            });
+            selectedTable = availableTables[0];
+        }
+        
+        console.log(`   ✅ Found available table: ${selectedTable.id} (${selectedTable.capacity} pax)`);
+        
+        // Update local state: Remove from old table, add to new table
+        const oldTable = tables.find(t => t.id === tableId);
+        const newTable = tables.find(t => t.id === selectedTable.id);
+        
+        if (oldTable && newTable) {
+            // Remove from old table
+            oldTable.reservations = oldTable.reservations.filter(r => r.id !== reservationToMove.id);
+            
+            // Add to new table
+            reservationToMove.tableId = selectedTable.id;
+            newTable.reservations.push(reservationToMove);
+            newTable.reservations.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+            
+            console.log(`   ✅ Updated local state: Moved to table ${selectedTable.id}`);
+        }
+        
+        // Update Airtable
+        if (reservationToMove.airtableId && window.airtableService) {
+            try {
+                const tableIdForAirtable = selectedTable.id;
+                
+                await window.airtableService.base('tbl9dDLnVa5oLEnuq').update([{
+                    id: reservationToMove.airtableId,
+                    fields: { "Table": tableIdForAirtable }
+                }]);
+                
+                console.log(`   ✅ Updated Airtable: Moved reservation ${reservationToMove.airtableId} to table ${tableIdForAirtable}`);
+                
+                fixes.push({
+                    success: true,
+                    conflict: conflict,
+                    movedReservation: reservationToMove,
+                    fromTable: tableId,
+                    toTable: selectedTable.id,
+                    customerName: reservationToMove.customerName || 'Unknown'
+                });
+            } catch (airtableError) {
+                console.error(`   ❌ Failed to update Airtable:`, airtableError);
+                fixes.push({
+                    success: false,
+                    conflict: conflict,
+                    error: `Airtable update failed: ${airtableError.message}`
+                });
+            }
+        } else {
+            console.warn(`   ⚠️ Cannot update Airtable: Missing airtableId or service`);
+            fixes.push({
+                success: false,
+                conflict: conflict,
+                error: 'Missing Airtable ID or service'
+            });
+        }
+    }
+    
+    const successfulFixes = fixes.filter(f => f.success).length;
+    const failedFixes = fixes.filter(f => !f.success).length;
+    
+    console.log(`\n📊 Conflict Resolution Summary:`);
+    console.log(`   Conflicts found: ${conflicts.length}`);
+    console.log(`   Successfully fixed: ${successfulFixes}`);
+    console.log(`   Failed to fix: ${failedFixes}`);
+    
+    if (successfulFixes > 0) {
+        console.log(`\n✅ Fixed reservations:`);
+        fixes.filter(f => f.success).forEach(fix => {
+            console.log(`   - ${fix.customerName}: ${fix.fromTable} → ${fix.toTable}`);
+        });
+    }
+    
+    if (failedFixes > 0) {
+        console.log(`\n❌ Failed to fix:`);
+        fixes.filter(f => !f.success).forEach(fix => {
+            console.log(`   - ${fix.error}`);
+        });
+    }
+    
+    return {
+        success: true,
+        conflictsFound: conflicts.length,
+        fixesApplied: successfulFixes,
+        fixesFailed: failedFixes,
+        fixes: fixes
+    };
+};
+
+// Make it easy to manually trigger conflict detection from console
+console.log('💡 To manually run conflict detection, type: window.detectAndFixConflicts()');
 
 // Function to validate and normalize Calendly booking data
 window.normalizeCalendlyBooking = function(rawBooking) {
