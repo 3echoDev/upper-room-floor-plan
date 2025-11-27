@@ -1367,59 +1367,147 @@ window.processCalendlyBookings = async function(calendlyBookings) {
 // Auto-fix conflicts: Detect and resolve overlapping reservations on the same table
 window.detectAndFixConflicts = async function() {
     console.log('\n🔍 Starting conflict detection and auto-fix...');
-    console.log('Current tables state:', tables.map(t => ({ id: t.id, reservations: t.reservations.length })));
     
     const fixes = [];
     const conflicts = [];
     
-    // Step 1: Find all conflicts
-    // First, ensure we have reservations loaded
-    if (!tables || tables.length === 0) {
-        console.log('⚠️ No tables found - cannot detect conflicts');
-        return { success: false, error: 'No tables found' };
+    // Step 1: Fetch ALL reservations from Airtable (not just today's)
+    if (!window.airtableService) {
+        console.log('⚠️ Airtable service not available');
+        return { success: false, error: 'Airtable service not available' };
     }
     
-    for (const table of tables) {
-        if (!table.reservations || table.reservations.length < 2) continue;
+    let allReservations = [];
+    try {
+        console.log('📥 Fetching all reservations from Airtable for conflict detection...');
+        allReservations = await window.airtableService.getReservations();
+        console.log(`✅ Fetched ${allReservations.length} total reservations from Airtable`);
+    } catch (error) {
+        console.error('❌ Failed to fetch reservations from Airtable:', error);
+        return { success: false, error: `Failed to fetch reservations: ${error.message}` };
+    }
+    
+    // Filter out cancelled reservations and past reservations (only check future ones)
+    const now = new Date();
+    const activeReservations = allReservations.filter(res => {
+        // Skip cancelled
+        const status = res.status?.toLowerCase() || '';
+        if (status === 'cancelled' || status === 'canceled') return false;
         
-        // Sort reservations by start time
-        const sortedReservations = [...table.reservations].sort((a, b) => 
-            new Date(a.startTime) - new Date(b.startTime)
-        );
+        // Skip past reservations (only check future ones)
+        if (res.time) {
+            const resDate = new Date(res.time);
+            if (!isNaN(resDate.getTime()) && resDate < now) {
+                return false; // Skip past reservations
+            }
+        }
         
-        // Check each reservation against all others on the same table
-        for (let i = 0; i < sortedReservations.length; i++) {
-            const reservation1 = sortedReservations[i];
-            const start1 = new Date(reservation1.startTime);
-            const end1 = new Date(reservation1.endTime || new Date(start1.getTime() + (reservation1.duration || 60) * 60000));
+        return true;
+    });
+    
+    // Group reservations by date for logging
+    const reservationsByDate = {};
+    activeReservations.forEach(res => {
+        if (!res.time) return;
+        const resDate = new Date(res.time);
+        if (isNaN(resDate.getTime())) return;
+        const dateKey = `${resDate.getMonth() + 1}/${resDate.getDate()}/${resDate.getFullYear()}`;
+        if (!reservationsByDate[dateKey]) {
+            reservationsByDate[dateKey] = [];
+        }
+        reservationsByDate[dateKey].push(res);
+    });
+    
+    // Step 2: Find all conflicts by checking each table
+    const conflictsByTable = {};
+    
+    for (const reservation of activeReservations) {
+        if (!reservation.tableId || !reservation.time) continue;
+        
+        const tableId = reservation.tableId;
+        const resStart = new Date(reservation.time);
+        const duration = parseInt(reservation.duration) || 60;
+        const resEnd = new Date(resStart.getTime() + duration * 60000);
+        
+        if (isNaN(resStart.getTime()) || isNaN(resEnd.getTime())) continue;
+        
+        // Initialize table conflicts array if needed
+        if (!conflictsByTable[tableId]) {
+            conflictsByTable[tableId] = [];
+        }
+        
+        // Check against all other reservations on the same table
+        for (const otherRes of activeReservations) {
+            if (otherRes.id === reservation.id) continue; // Skip self
+            if (otherRes.tableId !== tableId) continue; // Different table
             
-            // Skip invalid dates
-            if (isNaN(start1.getTime()) || isNaN(end1.getTime())) continue;
+            const otherStart = new Date(otherRes.time);
+            const otherDuration = parseInt(otherRes.duration) || 60;
+            const otherEnd = new Date(otherStart.getTime() + otherDuration * 60000);
             
-            for (let j = i + 1; j < sortedReservations.length; j++) {
-                const reservation2 = sortedReservations[j];
-                const start2 = new Date(reservation2.startTime);
-                const end2 = new Date(reservation2.endTime || new Date(start2.getTime() + (reservation2.duration || 60) * 60000));
+            if (isNaN(otherStart.getTime()) || isNaN(otherEnd.getTime())) continue;
+            
+            // Check for overlap
+            const hasOverlap = (resStart < otherEnd && resEnd > otherStart);
+            
+            if (hasOverlap) {
+                // Check if this conflict pair is already recorded
+                const conflictExists = conflictsByTable[tableId].some(c => 
+                    (c.reservation1.id === reservation.id && c.reservation2.id === otherRes.id) ||
+                    (c.reservation1.id === otherRes.id && c.reservation2.id === reservation.id)
+                );
                 
-                // Skip invalid dates
-                if (isNaN(start2.getTime()) || isNaN(end2.getTime())) continue;
-                
-                // Check for overlap
-                const hasOverlap = (start1 < end2 && end1 > start2);
-                
-                if (hasOverlap) {
-                    conflicts.push({
-                        tableId: table.id,
-                        reservation1: reservation1,
-                        reservation2: reservation2,
-                        start1: start1,
-                        end1: end1,
-                        start2: start2,
-                        end2: end2
+                if (!conflictExists) {
+                    conflictsByTable[tableId].push({
+                        reservation1: reservation,
+                        reservation2: otherRes,
+                        start1: resStart,
+                        end1: resEnd,
+                        start2: otherStart,
+                        end2: otherEnd
                     });
                 }
             }
         }
+    }
+    
+    // Step 3: Log conflicts by date
+    const sortedDates = Object.keys(reservationsByDate).sort((a, b) => {
+        const dateA = new Date(a);
+        const dateB = new Date(b);
+        return dateA - dateB;
+    });
+    
+    for (const dateKey of sortedDates) {
+        const dateReservations = reservationsByDate[dateKey];
+        const dateConflicts = [];
+        
+        // Find conflicts for this date
+        for (const tableId in conflictsByTable) {
+            for (const conflict of conflictsByTable[tableId]) {
+                const conflictDate1 = new Date(conflict.reservation1.time);
+                const conflictDate2 = new Date(conflict.reservation2.time);
+                const conflictDateKey = `${conflictDate1.getMonth() + 1}/${conflictDate1.getDate()}/${conflictDate1.getFullYear()}`;
+                
+                if (conflictDateKey === dateKey) {
+                    dateConflicts.push(conflict);
+                }
+            }
+        }
+        
+        if (dateConflicts.length > 0) {
+            console.log(`⚠️ Found ${dateConflicts.length} conflict(s) for ${dateKey}`);
+        } else {
+            console.log(`✅ No conflict for ${dateKey}`);
+        }
+    }
+    
+    // Flatten conflicts array
+    for (const tableId in conflictsByTable) {
+        conflicts.push(...conflictsByTable[tableId].map(c => ({
+            tableId: tableId,
+            ...c
+        })));
     }
     
     if (conflicts.length === 0) {
@@ -1429,7 +1517,7 @@ window.detectAndFixConflicts = async function() {
     
     console.log(`⚠️ Found ${conflicts.length} conflict(s) to resolve`);
     
-    // Step 2: Fix each conflict by reassigning one reservation
+    // Step 4: Fix each conflict by reassigning one reservation
     for (const conflict of conflicts) {
         const { tableId, reservation1, reservation2, start1, end1, start2, end2 } = conflict;
         
@@ -1438,20 +1526,25 @@ window.detectAndFixConflicts = async function() {
         let reservationToKeep = reservation1;
         let moveStart = start2;
         let moveEnd = end2;
-        let movePax = reservation2.pax || 2;
+        let movePax = parseInt(reservation2.pax) || 2;
         
         // Prefer moving Calendly bookings over phone call reservations
-        if (reservation1.source === 'calendly' && reservation2.source !== 'calendly') {
+        const res1Type = reservation1.reservationType?.toLowerCase() || '';
+        const res2Type = reservation2.reservationType?.toLowerCase() || '';
+        if (res1Type.includes('calendly') && !res2Type.includes('calendly')) {
             reservationToMove = reservation1;
             reservationToKeep = reservation2;
             moveStart = start1;
             moveEnd = end1;
-            movePax = reservation1.pax || 2;
+            movePax = parseInt(reservation1.pax) || 2;
         }
         
-        console.log(`\n🔧 Fixing conflict on table ${tableId}:`);
-        console.log(`   Keeping: ${reservationToKeep.customerName || 'Unknown'} (${reservationToKeep.pax || '?'} pax) at ${new Date(reservationToKeep.startTime).toLocaleString()}`);
-        console.log(`   Moving: ${reservationToMove.customerName || 'Unknown'} (${movePax} pax) at ${new Date(reservationToMove.startTime).toLocaleString()}`);
+        const moveDate = new Date(reservationToMove.time);
+        const dateStr = `${moveDate.getMonth() + 1}/${moveDate.getDate()}/${moveDate.getFullYear()}`;
+        
+        console.log(`\n🔧 Fixing conflict on table ${tableId} for ${dateStr}:`);
+        console.log(`   Keeping: ${reservationToKeep.customerName || 'Unknown'} (${reservationToKeep.pax || '?'} pax) at ${new Date(reservationToKeep.time).toLocaleString()}`);
+        console.log(`   Moving: ${reservationToMove.customerName || 'Unknown'} (${movePax} pax) at ${new Date(reservationToMove.time).toLocaleString()}`);
         
         // Get priority tables function (use global if available, otherwise fallback)
         const getPriorityTables = window.getPriorityTables || ((pax) => {
@@ -1466,7 +1559,7 @@ window.detectAndFixConflicts = async function() {
         // Find an available table for the reservation to move
         const priorityList = getPriorityTables(movePax);
         
-        // Filter available tables
+        // Filter available tables - check against ALL reservations from Airtable
         const availableTables = tables.filter(table => {
             // Check capacity
             if (table.capacity < movePax) return false;
@@ -1474,8 +1567,22 @@ window.detectAndFixConflicts = async function() {
             // Check time availability (exclude the table we're moving from)
             if (table.id === tableId) return false;
             
-            // Check for conflicts
-            if (hasReservationConflict(table.id, moveStart, moveEnd)) return false;
+            // Check for conflicts with ALL reservations (not just local ones)
+            const hasConflict = activeReservations.some(res => {
+                if (res.tableId !== table.id) return false;
+                if (res.id === reservationToMove.id) return false; // Don't conflict with itself
+                
+                const resStart = new Date(res.time);
+                const resDuration = parseInt(res.duration) || 60;
+                const resEnd = new Date(resStart.getTime() + resDuration * 60000);
+                
+                if (isNaN(resStart.getTime()) || isNaN(resEnd.getTime())) return false;
+                
+                // Check for overlap
+                return (moveStart < resEnd && moveEnd > resStart);
+            });
+            
+            if (hasConflict) return false;
             
             return true;
         });
@@ -1532,16 +1639,18 @@ window.detectAndFixConflicts = async function() {
         }
         
         // Update Airtable
-        if (reservationToMove.airtableId && window.airtableService) {
+        // Use reservation.id (from Airtable) or reservation.airtableId (from local)
+        const airtableId = reservationToMove.id || reservationToMove.airtableId;
+        if (airtableId && window.airtableService) {
             try {
                 const tableIdForAirtable = selectedTable.id;
                 
                 await window.airtableService.base('tbl9dDLnVa5oLEnuq').update([{
-                    id: reservationToMove.airtableId,
+                    id: airtableId,
                     fields: { "Table": tableIdForAirtable }
                 }]);
                 
-                console.log(`   ✅ Updated Airtable: Moved reservation ${reservationToMove.airtableId} to table ${tableIdForAirtable}`);
+                console.log(`   ✅ Updated Airtable: Moved reservation ${airtableId} to table ${tableIdForAirtable}`);
                 
                 fixes.push({
                     success: true,
@@ -1560,11 +1669,15 @@ window.detectAndFixConflicts = async function() {
                 });
             }
         } else {
-            console.warn(`   ⚠️ Cannot update Airtable: Missing airtableId or service`);
+            if (!airtableId) {
+                console.warn(`   ⚠️ Cannot update Airtable: Missing reservation ID`);
+            } else {
+                console.warn(`   ⚠️ Cannot update Airtable: Airtable service not available`);
+            }
             fixes.push({
                 success: false,
                 conflict: conflict,
-                error: 'Missing Airtable ID or service'
+                error: airtableId ? 'Airtable service not available' : 'Missing reservation ID'
             });
         }
     }
