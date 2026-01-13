@@ -1140,91 +1140,113 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                 }
                 
                 // Save to Airtable with proper error handling
+                // **CRITICAL: Only mark as successful if Airtable save succeeds**
+                let airtableSaveSuccess = false;
                 try {
-                    if (window.airtableService) {
-                        // Saving Calendly booking to Airtable
-                        
-                        // **UPDATED: Use correct table ID for combinations vs single tables**
-                        const tableId = assignmentResult.isCombination 
-                            ? assignmentResult.reservation.tableId  // For combinations: "B1, B2"
-                            : assignmentResult.table.id;            // For single tables: "B1"
-                        
-                        // **FIXED: Use correct field mapping to match walk-in reservation pattern**
-                        const fields = {
-                            "Table": tableId,
-                            "Reservation Type": "Calendly", // Use proper Airtable value
-                            "Status": "Reserved", // Map to proper Airtable status
-                            "Pax": assignmentResult.reservation.pax.toString(),
-                            "DateandTime": assignmentResult.reservation.startTime,
-                            "Duration": assignmentResult.reservation.duration.toString(),
-                            "Confirmation": false // Explicitly set to false to prevent auto-ticking
-                        };
+                    if (!window.airtableService) {
+                        throw new Error('Airtable service is not available. Please refresh the page.');
+                    }
+                    
+                    // Saving Calendly booking to Airtable
+                    
+                    // **UPDATED: Use correct table ID for combinations vs single tables**
+                    const tableId = assignmentResult.isCombination 
+                        ? assignmentResult.reservation.tableId  // For combinations: "B1, B2"
+                        : assignmentResult.table.id;            // For single tables: "B1"
+                    
+                    // **FIXED: Use correct field mapping to match walk-in reservation pattern**
+                    const fields = {
+                        "Table": tableId,
+                        "Reservation Type": "Calendly", // Use proper Airtable value
+                        "Status": "Reserved", // Map to proper Airtable status
+                        "Pax": assignmentResult.reservation.pax.toString(),
+                        "DateandTime": assignmentResult.reservation.startTime,
+                        "Duration": assignmentResult.reservation.duration.toString(),
+                        "Confirmation": false // Explicitly set to false to prevent auto-ticking
+                    };
 
-                        // Add customer name to the proper Name field
-                        if (assignmentResult.reservation.customerName) {
-                            fields["Name"] = assignmentResult.reservation.customerName;
-                        }
-                        
-                        // Add special request to Customer Notes (only if it exists)
-                        if (assignmentResult.reservation.specialRequest) {
-                            fields["Customer Notes"] = assignmentResult.reservation.specialRequest;
-                        }
+                    // Add customer name to the proper Name field
+                    if (assignmentResult.reservation.customerName) {
+                        fields["Name"] = assignmentResult.reservation.customerName;
+                    }
+                    
+                    // Add special request to Customer Notes (only if it exists)
+                    if (assignmentResult.reservation.specialRequest) {
+                        fields["Customer Notes"] = assignmentResult.reservation.specialRequest;
+                    }
 
-                        // Add phone number if available
-                        if (assignmentResult.reservation.phoneNumber) {
-                            fields["PH Number"] = assignmentResult.reservation.phoneNumber;
-                        }
-                        
-                        // Add system notes to track this is a Calendly booking
-                        const systemNotes = assignmentResult.isCombination 
-                            ? `Automatically assigned from Calendly booking (combination: ${assignmentResult.combinationInfo.tableIds}) - Duration: ${assignmentResult.reservation.duration} minutes`
-                            : `Automatically assigned from Calendly booking - Duration: ${assignmentResult.reservation.duration} minutes`;
-                        fields["System Notes"] = systemNotes;
+                    // Add phone number if available
+                    if (assignmentResult.reservation.phoneNumber) {
+                        fields["PH Number"] = assignmentResult.reservation.phoneNumber;
+                    }
+                    
+                    // Add system notes to track this is a Calendly booking
+                    const systemNotes = assignmentResult.isCombination 
+                        ? `Automatically assigned from Calendly booking (combination: ${assignmentResult.combinationInfo.tableIds}) - Duration: ${assignmentResult.reservation.duration} minutes`
+                        : `Automatically assigned from Calendly booking - Duration: ${assignmentResult.reservation.duration} minutes`;
+                    fields["System Notes"] = systemNotes;
 
-                        console.log('Saving to Airtable with fields:', fields); // Debug log
+                    console.log('💾 Saving to Airtable with fields:', fields); // Debug log
 
-                        const result = await window.airtableService.base('tbl9dDLnVa5oLEnuq').create([
-                            { fields }
-                        ]);
-                        
-                        // **CRITICAL: Update the local reservation with Airtable ID**
-                        if (assignmentResult.isCombination) {
-                            // For combinations: update all tables that have this reservation
-                            for (const table of assignmentResult.allTables) {
-                                const localTable = tables.find(t => t.id === table.id);
-                                if (localTable) {
-                                    const localReservation = localTable.reservations.find(r => r.id === assignmentResult.reservation.id);
-                                    if (localReservation && result && result[0]) {
-                                        localReservation.airtableId = result[0].id;
-                                        localReservation.id = result[0].id;
-                                    }
-                                }
-                            }
-                            // Combination booking saved to Airtable
-                        } else {
-                            // For single tables: update the one table
-                            const table = tables.find(t => t.id === assignmentResult.table.id);
-                            if (table) {
-                                const localReservation = table.reservations.find(r => r.id === assignmentResult.reservation.id);
+                    const result = await window.airtableService.base('tbl9dDLnVa5oLEnuq').create([
+                        { fields }
+                    ]);
+                    
+                    // **CRITICAL: Verify the result is valid**
+                    if (!result || !result[0] || !result[0].id) {
+                        throw new Error('Airtable returned invalid result - no record ID received');
+                    }
+                    
+                    // **CRITICAL: Update the local reservation with Airtable ID**
+                    if (assignmentResult.isCombination) {
+                        // For combinations: update all tables that have this reservation
+                        for (const table of assignmentResult.allTables) {
+                            const localTable = tables.find(t => t.id === table.id);
+                            if (localTable) {
+                                const localReservation = localTable.reservations.find(r => r.id === assignmentResult.reservation.id);
                                 if (localReservation && result && result[0]) {
                                     localReservation.airtableId = result[0].id;
                                     localReservation.id = result[0].id;
-                                    // Booking saved to Airtable
-                                } else {
-                                    console.warn('⚠️ Failed to link local reservation with Airtable record');
+                                    console.log(`✅ Linked combination reservation to Airtable ID: ${result[0].id}`);
                                 }
                             }
                         }
-                        
-                        // **CRITICAL: Clear Airtable cache to ensure fresh data**
-                        window.airtableService.cachedReservations = [];
-                        window.airtableService.lastFetchTime = null;
-                        
+                        airtableSaveSuccess = true;
+                        console.log('✅ Combination booking saved to Airtable');
                     } else {
-                        console.warn('⚠️ Airtable service not available - assignment saved locally only');
+                        // For single tables: update the one table
+                        const table = tables.find(t => t.id === assignmentResult.table.id);
+                        if (table) {
+                            const localReservation = table.reservations.find(r => r.id === assignmentResult.reservation.id);
+                            if (localReservation && result && result[0]) {
+                                localReservation.airtableId = result[0].id;
+                                localReservation.id = result[0].id;
+                                airtableSaveSuccess = true;
+                                console.log(`✅ Linked reservation to Airtable ID: ${result[0].id}`);
+                                console.log('✅ Booking saved to Airtable');
+                            } else {
+                                throw new Error('Failed to link local reservation with Airtable record - reservation not found in local table');
+                            }
+                        } else {
+                            throw new Error('Table not found in local tables array');
+                        }
                     }
+                    
+                    // **CRITICAL: Clear Airtable cache to ensure fresh data**
+                    window.airtableService.cachedReservations = [];
+                    window.airtableService.lastFetchTime = null;
+                    
                 } catch (airtableError) {
                     console.error('❌ CRITICAL: Failed to save Calendly booking to Airtable:', airtableError);
+                    console.error('Error details:', {
+                        message: airtableError.message,
+                        stack: airtableError.stack,
+                        booking: {
+                            customer: booking.customerName,
+                            pax: booking.pax,
+                            time: booking.startTime
+                        }
+                    });
                     
                     // **IMPORTANT: Remove the local reservation if Airtable save fails**
                     if (assignmentResult.isCombination) {
@@ -1245,6 +1267,9 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                         }
                     }
                     
+                    // **CRITICAL: Update UI immediately to reflect the failure**
+                    initialize(); // Refresh UI to remove the failed reservation
+                    
                     // Mark this assignment as failed
                     results.failed.push({
                         booking: booking,
@@ -1252,6 +1277,17 @@ window.processCalendlyBookings = async function(calendlyBookings) {
                     });
                     results.summary.failed++;
                     continue; // Skip to next booking
+                }
+                
+                // **CRITICAL: Only mark as successful if Airtable save actually succeeded**
+                if (!airtableSaveSuccess) {
+                    console.error('❌ Airtable save did not complete successfully');
+                    results.failed.push({
+                        booking: booking,
+                        error: 'Airtable save did not complete successfully'
+                    });
+                    results.summary.failed++;
+                    continue;
                 }
                 
                 results.successful.push({

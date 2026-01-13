@@ -4,7 +4,7 @@ const https = require('https');
 const CALENDLY_ACCESS_TOKEN = 'eyJraWQiOiIxY2UxZTEzNjE3ZGNmNzY2YjNjZWJjY2Y4ZGM1YmFmYThhNjVlNjg0MDIzZjdjMzJiZTgzNDliMjM4MDEzNWI0IiwidHlwIjoiUEFUIiwiYWxnIjoiRVMyNTYifQ.eyJpc3MiOiJodHRwczovL2F1dGguY2FsZW5kbHkuY29tIiwiaWF0IjoxNzY3OTM1MzAwLCJqdGkiOiI3MjllMTljNi0wMmFhLTRlNDAtODZjMi1lY2FhYmVhYTA0M2YiLCJ1c2VyX3V1aWQiOiI0MWEyNmI2OS0zOTZkLTRmYTMtOGY1NC00NTVjMjBiMWJkMTcifQ.k_WAkpHUg6EvDllhWq_sss5HD3QedljpDPUi7HKQ8NHKYj8JWuzenB-CYr7xn8BbXliQ5jkxbSPws7ifR59iFQ';
 
 // NEW webhook URL
-const NEW_WEBHOOK_URL = 'https://upper-room-calendly-server-6ydwlf9hp-3echos-projects.vercel.app/api/webhook/calendly';
+const NEW_WEBHOOK_URL = 'https://upper-room-calendly-server-9wmnlgx97-3echos-projects.vercel.app/api/webhook/calendly';
 
 function makeRequest(options, data = null) {
   return new Promise((resolve, reject) => {

@@ -360,16 +360,14 @@ class CalendlyService {
                 }
             }
             
-            // Check local tracking first by event ID
-            if (this.assignedEventIds.has(eventId)) {
-                return true;
-            }
-
+            // **FIXED: Don't trust the Set alone - always verify with Airtable first**
+            // The Set might contain stale entries from failed saves
+            
             // Check by unique key based on customer details
             const uniqueKey = this.createUniqueKey(customerName, phoneNumber, startTime);
-            if (uniqueKey && this.assignedEventIds.has(uniqueKey)) {
-                return true;
-            }
+            
+            // **IMPORTANT: Even if found in Set, verify it's actually in Airtable**
+            // This prevents false positives from stale assignments
             
             // **NEW: Check by time-based key for exact time matches (REMOVED - allows multiple bookings at same time)**
             // const timeKey = this.createTimeKey(startTime);
@@ -386,39 +384,11 @@ class CalendlyService {
             // }
 
             // **ENHANCED: More robust check using customer details and time**
+            // **FIXED: Check Airtable FIRST to ensure we only mark as assigned if it's actually in Airtable**
             if (startTime) {
                 const eventTime = new Date(startTime);
                 
-                // Check local tables for matching reservations
-                for (const table of tables) {
-                    for (const reservation of table.reservations) {
-                        if (reservation.source === 'calendly') {
-                            const resTime = new Date(reservation.startTime);
-                            const timeDiff = Math.abs(eventTime - resTime);
-                            
-                            // **NEW: Check for exact time match first (most reliable)**
-                            const exactTimeMatch = timeDiff < 60000; // Within 1 minute
-                            
-                            // Check for same customer name and similar time (within 5 minutes)
-                            const sameCustomerSimilarTime = customerName && 
-                                reservation.customerName === customerName && 
-                                timeDiff < 300000;
-                            
-                            // Check for same phone number and similar time (within 5 minutes)
-                            const samePhoneSimilarTime = phoneNumber && 
-                                reservation.phoneNumber === phoneNumber && 
-                                timeDiff < 300000;
-                            
-                            if (sameCustomerSimilarTime || samePhoneSimilarTime) {
-                                this.assignedEventIds.add(eventId);
-                                if (uniqueKey) this.assignedEventIds.add(uniqueKey);
-                                return true;
-                            }
-                        }
-                    }
-                }
-
-                // Check Airtable for existing assignments with same customer details
+                // **FIXED: Check Airtable FIRST - this is the source of truth**
                 if (window.airtableService) {
                     try {
                         const reservations = await window.airtableService.getReservations();
@@ -454,12 +424,53 @@ class CalendlyService {
                         console.warn('Error checking Airtable for duplicates:', airtableError);
                     }
                 }
+                
+                // **FIXED: Only check local tables if reservation has airtableId (proves it's in Airtable)**
+                for (const table of tables) {
+                    for (const reservation of table.reservations) {
+                        if (reservation.source === 'calendly' && reservation.airtableId) {
+                            // Only consider it assigned if it has an airtableId (proves it's saved)
+                            const resTime = new Date(reservation.startTime);
+                            const timeDiff = Math.abs(eventTime - resTime);
+                            
+                            // Check for same customer name and similar time (within 5 minutes)
+                            const sameCustomerSimilarTime = customerName && 
+                                reservation.customerName === customerName && 
+                                timeDiff < 300000;
+                            
+                            // Check for same phone number and similar time (within 5 minutes)
+                            const samePhoneSimilarTime = phoneNumber && 
+                                reservation.phoneNumber === phoneNumber && 
+                                timeDiff < 300000;
+                            
+                            if (sameCustomerSimilarTime || samePhoneSimilarTime) {
+                                this.assignedEventIds.add(eventId);
+                                if (uniqueKey) this.assignedEventIds.add(uniqueKey);
+                                return true;
+                            }
+                        }
+                    }
+                }
             }
 
             return false;
         } catch (error) {
             console.error('Error checking if event is assigned:', error);
             return false; // Assume not assigned if we can't check
+        }
+    }
+
+    // Unmark an event as assigned (useful if Airtable save fails)
+    unmarkEventAsAssigned(eventId, customerName = null, phoneNumber = null, startTime = null) {
+        if (eventId) {
+            this.assignedEventIds.delete(eventId);
+            this.assignedEventIds.delete(`past_${eventId}`);
+        }
+        
+        const uniqueKey = this.createUniqueKey(customerName, phoneNumber, startTime);
+        if (uniqueKey) {
+            this.assignedEventIds.delete(uniqueKey);
+            this.assignedEventIds.delete(`past_${uniqueKey}`);
         }
     }
 
@@ -521,15 +532,135 @@ class CalendlyService {
         }
     }
 
+    // **NEW: Clean up stale assignments that aren't actually in Airtable**
+    async cleanupStaleAssignments() {
+        try {
+            console.log('🧹 Cleaning up stale assignments...');
+            if (!window.airtableService) {
+                console.warn('⚠️ Airtable service not available, skipping cleanup');
+                return;
+            }
+            
+            // Get all actual Calendly reservations from Airtable
+            const airtableReservations = await window.airtableService.getReservations();
+            const calendlyReservations = airtableReservations.filter(res => 
+                res.reservationType && res.reservationType.toLowerCase() === 'calendly'
+            );
+            
+            // Create a Set of valid unique keys from Airtable
+            const validKeys = new Set();
+            const validEventIds = new Set();
+            
+            calendlyReservations.forEach(res => {
+                // Add unique key
+                const uniqueKey = this.createUniqueKey(res.customerName, res.phoneNumber, res.time);
+                if (uniqueKey) {
+                    validKeys.add(uniqueKey);
+                }
+                
+                // Extract event IDs from notes
+                const notes = res.customerNotes || res.systemNotes || '';
+                const eventIdMatch = notes.match(/events\/[a-zA-Z0-9-]+/);
+                if (eventIdMatch) {
+                    validEventIds.add(eventIdMatch[0]);
+                }
+            });
+            
+            // Remove any assignedEventIds that don't have a corresponding Airtable record
+            let removedCount = 0;
+            const keysToRemove = [];
+            this.assignedEventIds.forEach(key => {
+                // Skip past event markers (keep them)
+                if (key.startsWith('past_')) {
+                    return;
+                }
+                
+                // Check if it's an event URI
+                if (key.includes('/events/')) {
+                    // Check if this event ID exists in Airtable
+                    if (!validEventIds.has(key)) {
+                        keysToRemove.push(key);
+                    }
+                    return;
+                }
+                
+                // Check if it's a group event ID (format: eventId_invitee_0)
+                if (key.includes('_invitee_')) {
+                    // For group events, check by unique key instead
+                    // We'll validate these when checking individual bookings
+                    return;
+                }
+                
+                // If this key doesn't match any valid Airtable reservation, mark for removal
+                if (!validKeys.has(key)) {
+                    keysToRemove.push(key);
+                }
+            });
+            
+            // Remove stale keys
+            keysToRemove.forEach(key => {
+                this.assignedEventIds.delete(key);
+                removedCount++;
+            });
+            
+            // **NEW: Also rebuild the Set from Airtable to be thorough**
+            // Preserve past events, but rebuild current assignments from Airtable
+            const pastEvents = new Set();
+            this.assignedEventIds.forEach(key => {
+                if (key.startsWith('past_')) {
+                    pastEvents.add(key);
+                }
+            });
+            
+            // Clear non-past entries
+            this.assignedEventIds.clear();
+            
+            // Restore past events
+            pastEvents.forEach(key => {
+                this.assignedEventIds.add(key);
+            });
+            
+            // Rebuild the Set from actual Airtable reservations
+            calendlyReservations.forEach(res => {
+                const uniqueKey = this.createUniqueKey(res.customerName, res.phoneNumber, res.time);
+                if (uniqueKey) {
+                    this.assignedEventIds.add(uniqueKey);
+                }
+                
+                // Extract event IDs from notes
+                const notes = res.customerNotes || res.systemNotes || '';
+                const eventIdMatch = notes.match(/events\/[a-zA-Z0-9-]+/);
+                if (eventIdMatch) {
+                    this.assignedEventIds.add(eventIdMatch[0]);
+                }
+            });
+            
+            if (removedCount > 0 || keysToRemove.length > 0) {
+                console.log(`🧹 Cleaned up stale assignments and rebuilt Set from Airtable (${this.assignedEventIds.size} valid entries)`);
+                if (keysToRemove.length > 0) {
+                    console.log('🧹 Removed keys:', keysToRemove);
+                }
+            } else {
+                console.log(`✅ Cleaned and rebuilt assignment Set from Airtable (${this.assignedEventIds.size} valid entries)`);
+            }
+        } catch (error) {
+            console.error('Error cleaning up stale assignments:', error);
+        }
+    }
+
     // Load existing assignments from tables and Airtable to prevent duplicates
     async loadExistingAssignments() {
         try {
+            // **NEW: Clean up stale assignments first**
+            await this.cleanupStaleAssignments();
+            
             // Loading existing Calendly assignments
             
-            // Check local tables first
+            // **FIXED: Only load local assignments that have airtableId (proves they're in Airtable)**
             for (const table of tables) {
                 for (const reservation of table.reservations) {
-                    if (reservation.source === 'calendly') {
+                    if (reservation.source === 'calendly' && reservation.airtableId) {
+                        // Only track if it has airtableId (proves it's saved to Airtable)
                         // Check if this is a past event
                         const startTime = reservation.startTime;
                         let isPastEvent = false;
@@ -550,7 +681,7 @@ class CalendlyService {
                         if (uniqueKey) {
                             this.assignedEventIds.add(uniqueKey);
                             if (isPastEvent) this.assignedEventIds.add(`past_${uniqueKey}`);
-                            // Tracked existing local assignment
+                            // Tracked existing local assignment (with Airtable ID)
                         }
                         
                         // Create time-based identifier for exact time matches (REMOVED - allows multiple bookings at same time)
@@ -989,23 +1120,15 @@ async function updateCalendlyBookings() {
                             }
                         }
                         
-                        // Check if this specific invitee is already assigned
-                        const inviteeIndex = event.invitees.indexOf(invitee);
-                        const groupEventId = `${eventId}_invitee_${inviteeIndex}`;
-                        const isInviteeAlreadyAssigned = await calendlyService.isEventAlreadyAssigned(
-                            groupEventId, 
-                            name, 
-                            inviteePhoneNumber !== 'N/A' ? inviteePhoneNumber : null, 
-                            event.start_time
-                        );
-                        
-                        // Find assigned table for this invitee (handle combinations)
+                        // **FIXED: Check Airtable first, not the stale Set**
+                        // Find assigned table for this invitee (handle combinations) - check Airtable directly
                         let assignedTable = null;
                         let combinationInfo = null;
                         
-                        // First, find the reservation
+                        // **FIXED: Only find reservations that have airtableId (proves they're in Airtable)**
                         const reservation = tables.flatMap(table => table.reservations).find(res => 
                             res.source === 'calendly' && 
+                            res.airtableId && // **CRITICAL: Only show as assigned if it has airtableId**
                             res.customerName === name &&
                             Math.abs(new Date(res.startTime) - new Date(event.start_time)) < 300000
                         );
@@ -1028,6 +1151,22 @@ async function updateCalendlyBookings() {
                             }
                         }
                         
+                        // **NEW: Only check isEventAlreadyAssigned if we don't have a reservation with airtableId**
+                        // This prevents stale Set entries from blocking assignment
+                        const inviteeIndex = event.invitees.indexOf(invitee);
+                        const groupEventId = `${eventId}_invitee_${inviteeIndex}`;
+                        let isInviteeAlreadyAssigned = false;
+                        
+                        if (!reservation) {
+                            // Only check if not already found in Airtable
+                            isInviteeAlreadyAssigned = await calendlyService.isEventAlreadyAssigned(
+                                groupEventId, 
+                                name, 
+                                inviteePhoneNumber !== 'N/A' ? inviteePhoneNumber : null, 
+                                event.start_time
+                            );
+                        }
+                        
                         // Generate assignment status
                         let assignedTableInfo = '';
                         if (isPastEvent) {
@@ -1042,7 +1181,10 @@ async function updateCalendlyBookings() {
                                     </small>
                                 </div>
                             `;
-                        } else if (assignedTable || combinationInfo || isInviteeAlreadyAssigned) {
+                        // **FIXED: Only show as assigned if we actually found a reservation with airtableId**
+                        // Don't trust isInviteeAlreadyAssigned alone - it might be stale
+                        } else if (reservation && (assignedTable || combinationInfo)) {
+                            // Only show as assigned if we found a real reservation with airtableId
                             if (combinationInfo) {
                                 // Show combination assignment
                                 assignedTableInfo = `
@@ -1056,16 +1198,16 @@ async function updateCalendlyBookings() {
                                         </small>
                                     </div>
                                 `;
-                            } else {
-                                // Show single table assignment
+                            } else if (assignedTable) {
+                                // Show single table assignment (only if we have the actual table)
                                 assignedTableInfo = `
                                     <div class="d-flex align-items-center justify-content-between bg-success bg-opacity-10 rounded p-2">
                                         <div class="d-flex align-items-center">
                                             <i class="bi bi-check-circle text-success me-2"></i>
-                                            <span class="text-success fw-bold">Table ${assignedTable ? assignedTable.id : 'Assigned'}</span>
+                                            <span class="text-success fw-bold">Table ${assignedTable.id}</span>
                                         </div>
                                         <small class="text-success">
-                                            ${assignedTable ? `${assignedTable.capacity} pax capacity` : 'Assigned'}
+                                            ${assignedTable.capacity} pax capacity
                                         </small>
                                     </div>
                                 `;
@@ -1169,9 +1311,10 @@ async function updateCalendlyBookings() {
                 let assignedTable = null;
                 let combinationInfo = null;
                 
-                // First, find the reservation
+                // **FIXED: Only find reservations that have airtableId (proves they're in Airtable)**
                 const reservation = tables.flatMap(table => table.reservations).find(res => 
                     res.source === 'calendly' && 
+                    res.airtableId && // **CRITICAL: Only show as assigned if it has airtableId**
                     (
                         (res.customerName === customerName && Math.abs(new Date(res.startTime) - new Date(event.start_time)) < 300000) ||
                         (phoneNumber !== 'N/A' && res.phoneNumber === phoneNumber && Math.abs(new Date(res.startTime) - new Date(event.start_time)) < 300000)
@@ -1210,8 +1353,11 @@ async function updateCalendlyBookings() {
                             </small>
                         </div>
                     `;
-                } else if (assignedTable || isAlreadyAssigned) {
-                    // Mark as assigned in service
+                // **FIXED: Only show as assigned if we actually found a reservation with airtableId**
+                // Don't trust isAlreadyAssigned alone - it might be stale
+                } else if (reservation && (assignedTable || combinationInfo)) {
+                    // Only show as assigned if we found a real reservation with airtableId
+                    // Mark as assigned in service (only if we have a real reservation)
                     if (event.invitees && event.invitees.length > 1) {
                         // Group event - use unique identifier
                         const inviteeIndex = event.invitees.findIndex(inv => 
@@ -1242,16 +1388,16 @@ async function updateCalendlyBookings() {
                                 </small>
                             </div>
                         `;
-                    } else {
-                        // Show single table assignment
+                    } else if (assignedTable) {
+                        // Show single table assignment (only if we have the actual table)
                         assignedTableInfo = `
                             <div class="d-flex align-items-center justify-content-between bg-success bg-opacity-10 rounded p-2">
                                 <div class="d-flex align-items-center">
                                     <i class="bi bi-check-circle text-success me-2"></i>
-                                    <span class="text-success fw-bold">Table ${assignedTable ? assignedTable.id : 'Assigned'}</span>
+                                    <span class="text-success fw-bold">Table ${assignedTable.id}</span>
                                 </div>
                                 <small class="text-success">
-                                    ${assignedTable ? `${assignedTable.capacity} pax capacity` : 'Assigned'}
+                                    ${assignedTable.capacity} pax capacity
                                 </small>
                             </div>
                         `;
@@ -1380,11 +1526,27 @@ async function updateCalendlyBookings() {
         // Automatically assign unassigned bookings with priority rules (skip past events)
         if (bookingsForAssignment.length > 0) {
             console.log(`\n🔄 Auto-assigning ${bookingsForAssignment.length} unassigned booking(s)...`);
+            console.log('📋 Bookings to assign:', bookingsForAssignment.map(b => ({
+                customer: b.customerName,
+                pax: b.pax,
+                time: b.startTime
+            })));
             
             try {
                 // Process unassigned bookings with priority rules
                 const normalizedBookings = bookingsForAssignment.map(booking => normalizeCalendlyBooking(booking));
+                console.log('📋 Normalized bookings:', normalizedBookings.map(b => ({
+                    customer: b.customerName,
+                    pax: b.pax,
+                    time: b.startTime
+                })));
                 const assignmentResults = await processCalendlyBookings(normalizedBookings);
+                console.log('📊 Assignment results:', {
+                    assigned: assignmentResults.summary.assigned,
+                    failed: assignmentResults.summary.failed,
+                    successful: assignmentResults.successful.length,
+                    failedList: assignmentResults.failed
+                });
                 
                 // Mark successfully assigned events
                 assignmentResults.successful.forEach(result => {

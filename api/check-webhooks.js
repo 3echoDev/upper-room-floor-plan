@@ -89,7 +89,7 @@ async function checkWebhooks() {
     });
     
     // Check if any webhook points to your Vercel URL
-    const expectedUrl = 'https://upper-room-calendly-server-6ydwlf9hp-3echos-projects.vercel.app/api/webhook/calendly';
+    const expectedUrl = 'https://upper-room-calendly-server-9wmnlgx97-3echos-projects.vercel.app/api/webhook/calendly';
     const matchingWebhook = webhooks.find(w => w.callback_url === expectedUrl);
     
     if (matchingWebhook) {
